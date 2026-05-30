@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lịch Trực — Trích xuất Google Calendar</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c18;
+  --surface: #0f1629;
+  --surface2: #161f38;
+  --surface3: #1c2845;
+  --border: #1e2d4a;
+  --border2: #243555;
+  --accent: #3b7ef8;
+  --accent2: #06b6d4;
+  --accent3: #8b5cf6;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-muted: #4b6080;
+  --hm: #f59e0b;
+  --ttt: #10b981;
+  --green: #22c55e;
+  --red: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Animated background */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(59,126,248,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(139,92,246,0.05) 0%, transparent 60%);
+  pointer-events: none; z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,126,248,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,126,248,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+}
+
+.container { max-width: 1060px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
+
+/* ── HEADER ── */
+header { padding: 44px 0 36px; text-align: center; }
+
+.logo-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px;
+}
+.logo-icon {
+  width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), var(--accent3));
+  border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;
+  box-shadow: 0 0 24px rgba(59,126,248,0.3);
+}
+h1 {
+  font-size: clamp(22px, 4.5vw, 38px); font-weight: 800;
+  background: linear-gradient(135deg, #e2e8f0 20%, #93c5fd 60%, #c4b5fd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  line-height: 1.2;
+}
+.header-sub { color: var(--text-muted); font-size: 13.5px; margin-top: 8px; }
+
+/* ── UPLOAD ZONE ── */
+.upload-section { margin-bottom: 28px; }
+
+.drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: 18px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: var(--surface);
+  position: relative;
+  overflow: hidden;
+}
+.drop-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(59,126,248,0.03), rgba(139,92,246,0.02));
+  opacity: 0; transition: opacity 0.25s;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 40px rgba(59,126,248,0.12);
+}
+.drop-zone:hover::before, .drop-zone.drag-over::before { opacity: 1; }
+
+.upload-icon {
+  font-size: 48px; margin-bottom: 16px;
+  display: block;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.drop-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.drop-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+.drop-sub span { color: var(--text-dim); }
+
+.upload-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--accent), #2563eb);
+  border: none; border-radius: 10px; padding: 11px 24px;
+  color: white; font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; box-shadow: 0 4px 20px rgba(59,126,248,0.3);
+}
+.upload-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(59,126,248,0.45); }
+
+#fileInput { display: none; }
+
+/* File loaded state */
+.file-loaded {
+  display: none;
+  align-items: center; gap: 14px;
+  background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(6,182,212,0.05));
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 14px; padding: 16px 20px; margin-top: 14px;
+}
+.file-loaded.visible { display: flex; }
+.file-icon { font-size: 28px; }
+.file-info { flex: 1; }
+.file-name { font-size: 14px; font-weight: 700; color: var(--green); }
+.file-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.change-btn {
+  background: transparent; border: 1px solid var(--border2); border-radius: 8px;
+  padding: 7px 14px; color: var(--text-dim); font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 12px; cursor: pointer; transition: all 0.15s;
+}
+.change-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── ERROR / INFO ALERT ── */
+.alert {
+  display: none; border-radius: 12px; padding: 14px 18px;
+  font-size: 13px; margin-bottom: 16px; line-height: 1.6;
+}
+.alert.visible { display: flex; gap: 10px; align-items: flex-start; }
+.alert-error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+.alert-info { background: rgba(59,126,248,0.07); border: 1px solid rgba(59,126,248,0.2); color: #93c5fd; }
+
+/* ── COLUMN MAPPER ── */
+.mapper-panel {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.mapper-panel::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+.mapper-panel.visible { display: block; }
+.mapper-title { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent2); margin-bottom: 18px; }
+
+.col-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+
+.col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 20px; }
+
+.col-row { display: flex; flex-direction: column; gap: 5px; }
+.col-label { font-size: 11px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px; }
+.col-select {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; color: var(--text); font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 13px; cursor: pointer; transition: border-color 0.15s;
+}
+.col-select:focus { outline: none; border-color: var(--accent); }
+.col-select option { background: var(--surface2); }
+
+.parse-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  border: none; border-radius: 10px; padding: 12px 28px;
+  color: white; font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(59,126,248,0.25);
+}
+.parse-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(59,126,248,0.4); }
+
+/* ── STATS ── */
+.stats-bar {
+  display: none; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px; margin-bottom: 24px;
+}
+.stats-bar.visible { display: grid; }
+
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px; text-align: center;
+  transition: border-color 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-num {
+  font-size: 26px; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+  background: linear-gradient(135deg, #93c5fd, #c4b5fd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.stat-label { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* ── NAME SELECTOR ── */
+.selector-panel {
+  display: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.selector-panel::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent3), var(--accent));
+}
+.selector-panel.visible { display: block; }
+
+.selector-label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; font-weight: 600; }
+.name-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.name-btn {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 9px 18px; color: var(--text-dim);
+  font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.18s;
+}
+.name-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(59,126,248,0.07); transform: translateY(-1px); }
+.name-btn.active {
+  border-color: var(--accent); color: #93c5fd;
+  background: linear-gradient(135deg, rgba(59,126,248,0.18), rgba(139,92,246,0.08));
+  box-shadow: 0 0 20px rgba(59,126,248,0.15);
+}
+.count-badge {
+  display: inline-block; background: rgba(59,126,248,0.18); border-radius: 999px;
+  padding: 1px 7px; font-size: 11px; margin-left: 6px; color: var(--accent2);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── TABLE ── */
+.table-wrapper {
+  display: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; overflow: hidden; margin-bottom: 24px;
+}
+.table-wrapper.visible { display: block; }
+
+.table-header-bar {
+  padding: 16px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.table-title { font-size: 13.5px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.export-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; border-radius: 8px; padding: 9px 18px; color: white;
+  font-family: 'Be Vietnam Pro', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.export-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,126,248,0.4); }
+.export-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--surface2); padding: 11px 16px;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-muted); text-align: left; font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr { border-bottom: 1px solid rgba(30,45,71,0.5); transition: background 0.12s; }
+tbody tr:hover { background: rgba(59,126,248,0.04); }
+tbody tr:last-child { border-bottom: none; }
+td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align: middle; }
+.td-date { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); white-space: nowrap; }
+.td-thu { font-size: 11.5px; color: var(--text-muted); }
+
+.location-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+.loc-hm { background: rgba(245,158,11,0.1); color: var(--hm); border: 1px solid rgba(245,158,11,0.2); }
+.loc-ttt { background: rgba(16,185,129,0.1); color: var(--ttt); border: 1px solid rgba(16,185,129,0.2); }
+.loc-other { background: rgba(139,92,246,0.1); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.2); }
+
+.shift-chip { display: inline-block; background: rgba(59,126,248,0.08); border: 1px solid rgba(59,126,248,0.18); border-radius: 6px; padding: 3px 10px; font-size: 11.5px; color: #93c5fd; font-weight: 500; }
+
+.empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+/* ── CSV INFO ── */
+.csv-info {
+  display: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 22px; margin-bottom: 24px;
+}
+.csv-info.visible { display: block; }
+.csv-info-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 10px; }
+.csv-preview {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);
+  background: var(--bg); border-radius: 8px; padding: 12px 16px;
+  overflow-x: auto; white-space: nowrap; border: 1px solid var(--border);
+}
+.tip-box {
+  display: flex; gap: 10px; align-items: flex-start; margin-top: 12px;
+  background: rgba(6,182,212,0.05); border: 1px solid rgba(6,182,212,0.13);
+  border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--text-dim); line-height: 1.6;
+}
+.tip-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+/* STEP INDICATOR */
+.steps {
+  display: flex; align-items: center; gap: 0; margin-bottom: 32px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 22px;
+  overflow-x: auto;
+}
+.step { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.step-circle {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
+  border: 2px solid var(--border2); color: var(--text-muted); background: var(--surface2);
+  transition: all 0.3s;
+}
+.step.active .step-circle { border-color: var(--accent); color: white; background: var(--accent); box-shadow: 0 0 12px rgba(59,126,248,0.4); }
+.step.done .step-circle { border-color: var(--green); color: white; background: var(--green); }
+.step-text { font-size: 12px; color: var(--text-muted); font-weight: 500; transition: color 0.3s; }
+.step.active .step-text { color: var(--text); }
+.step.done .step-text { color: var(--green); }
+.step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 12px; min-width: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo-row">
+      <div class="logo-icon">📋</div>
+    </div>
+    <h1>Lịch Trực → Google Calendar</h1>
+    <p class="header-sub">Upload file Excel lịch trực · Chọn tên · Xuất CSV nhập thẳng vào Google Calendar</p>
+  </header>
+
+  <!-- Steps -->
+  <div class="steps" id="stepsBar">
+    <div class="step active" id="step1">
+      <div class="step-circle">1</div>
+      <span class="step-text">Upload Excel</span>
+    </div>
+    <div class="step-sep"></div>
+    <div class="step" id="step2">
+      <div class="step-circle">2</div>
+      <span class="step-text">Xác nhận cột</span>
+    </div>
+    <div class="step-sep"></div>
+    <div class="step" id="step3">
+      <div class="step-circle">3</div>
+      <span class="step-text">Chọn tên</span>
+    </div>
+    <div class="step-sep"></div>
+    <div class="step" id="step4">
+      <div class="step-circle">4</div>
+      <span class="step-text">Xuất CSV</span>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-section">
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="upload-icon">📊</span>
+      <div class="drop-title">Kéo thả file Excel vào đây</div>
+      <div class="drop-sub">Hỗ trợ <span>.xlsx</span> và <span>.xls</span> · Dữ liệu xử lý ngay trên trình duyệt, không gửi lên server</div>
+      <button class="upload-btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+        📂 Chọn file Excel
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+
+    <div class="file-loaded" id="fileLoaded">
+      <span class="file-icon">✅</span>
+      <div class="file-info">
+        <div class="file-name" id="fileName">—</div>
+        <div class="file-meta" id="fileMeta">—</div>
+      </div>
+      <button class="change-btn" onclick="resetAll()">↩ Đổi file</button>
+    </div>
+  </div>
+
+  <!-- Alert -->
+  <div class="alert" id="alertBox"></div>
+
+  <!-- Column Mapper -->
+  <div class="mapper-panel" id="mapperPanel">
+    <div class="mapper-title">⚙️ Cấu hình cột dữ liệu</div>
+    <div class="col-hint" id="colHint"></div>
+    <div id="colGrid" class="col-grid"></div>
+    <button class="parse-btn" onclick="parseSchedule()">✨ Phân tích lịch trực →</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card"><div class="stat-num" id="statPersons">0</div><div class="stat-label">Nhân viên</div></div>
+    <div class="stat-card"><div class="stat-num" id="statEntries">0</div><div class="stat-label">Tổng ca</div></div>
+    <div class="stat-card"><div class="stat-num" id="statDays">0</div><div class="stat-label">Ngày làm</div></div>
+    <div class="stat-card"><div class="stat-num" id="statSheet">—</div><div class="stat-label">Sheet</div></div>
+  </div>
+
+  <!-- Name Selector -->
+  <div class="selector-panel" id="selectorPanel">
+    <div class="selector-label">Chọn nhân viên để xem lịch trực</div>
+    <div class="name-grid" id="nameGrid"></div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper" id="tableWrapper">
+    <div class="table-header-bar">
+      <div class="table-title"><span class="dot"></span><span id="tableTitle">Danh sách ca trực</span></div>
+      <button class="export-btn" id="exportBtn" onclick="exportCSV()" disabled>⬇️ Xuất CSV</button>
+    </div>
+    <div id="tableContainer"><div class="empty-state"><div class="empty-icon">👆</div><div>Chọn tên để xem lịch</div></div></div>
+  </div>
+
+  <!-- CSV Info -->
+  <div class="csv-info" id="csvInfo">
+    <div class="csv-info-title">📄 Định dạng CSV cho Google Calendar</div>
+    <div class="csv-preview" id="csvPreview"></div>
+    <div class="tip-box">
+      <span class="tip-icon">💡</span>
+      <span>Vào <strong>calendar.google.com</strong> → Cài đặt ⚙️ → <strong>Nhập &amp; xuất</strong> → <strong>Nhập</strong> → chọn file CSV → chọn lịch → <strong>Nhập</strong>. Ca trực sẽ tự động xuất hiện!</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let workbook = null;
+let rawHeaders = [];
+let rawRows = [];
+let rawColLocations = [];   // per-column location from Excel header row
+let rawDayColIdx = -1;
+let rawThuColIdx = -1;
+let scheduleData = [];
+let selectedName = null;
+let colConfig = {};
+let monthYear = { month: null, year: null };
+
+// Shift-time map for NON-nội-trú shifts: [startH, startM, endH, endM]
+// "Ra trực" không tính — chỉ dùng để nhận biết ngày thường vs ngày lễ
+const shiftTimes = {
+  'đi sớm':                     [6, 15, 7, 0],
+  'trực trưa':                  [12, 0, 13, 30],
+  'đi sớm a2':                  [6, 15, 7, 0],
+  'đi sớm a5':                  [6, 15, 7, 0],
+  'đi sớm a2 mở rộng':          [6, 15, 7, 0],
+  'đi sớm phần mềm 6h30':       [6, 30, 7, 0],
+  'default':                    [7, 0, 12, 0],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  NỘI TRÚ TIME RULES
+//
+//  Xác định loại ngày bằng cách đọc cột "Thứ" (thu):
+//    - "Thứ 7 (Sáng)"  → t7_sang
+//    - "Thứ 7 (Tối)"   → t7_toi
+//    - "CN (Sáng)"     → cn_sang
+//    - "CN (Tối)"      → cn_toi
+//    - Ngày thường     → weekday
+//
+//  "Ngày lễ / nghỉ lễ" = ngày mà trong scheduleData không có bất kỳ ca nào
+//  mang tên "Ra trực", "Đi sớm*", "Trực trưa" (chỉ có Nội trú) → isHoliday(day)
+//
+//  Quy tắc giờ Nội trú:
+//    weekday          → 16:30 → 07:00 hôm sau
+//    t7_sang          → 12:00 → 17:00 cùng ngày
+//    t7_toi           → 17:00 → 08:00 hôm sau
+//    cn_sang          → 08:00 → 17:00 cùng ngày
+//    cn_toi           → 17:00 → 07:00 hôm sau  (→ 08:00 nếu hôm sau cũng nghỉ lễ)
+//    holiday_sang     → 08:00 → 17:00 cùng ngày
+//    holiday_toi      → 17:00 → 07:00 hôm sau  (→ 08:00 nếu hôm sau cũng nghỉ lễ)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function classifyThu(thu) {
+  const t = (thu || '').toLowerCase();
+  if (t.includes('7') && t.includes('sáng'))  return 't7_sang';
+  if (t.includes('7') && t.includes('tối'))   return 't7_toi';
+  if ((t.includes('cn') || t.includes('chủ nhật')) && t.includes('sáng')) return 'cn_sang';
+  if ((t.includes('cn') || t.includes('chủ nhật')) && t.includes('tối'))  return 'cn_toi';
+  return 'weekday';
+}
+
+// Returns true if `day` is a "nghỉ lễ" day = no normal work shifts on that day
+// Ngày lễ = chỉ có ca Nội trú, không có Đi sớm hay Trực trưa
+function isHoliday(day) {
+  const normalShifts = ['đi sớm', 'trực trưa'];
+  return !scheduleData.some(r =>
+    r.day === day &&
+    normalShifts.some(ns => r.shift.toLowerCase().includes(ns))
+  );
+}
+
+/**
+ * Returns { startTime, endDate, endTime } for a Nội trú entry.
+ * @param {object} entry  - { day, thu, ... }
+ * @param {string} mon    - zero-padded month "06"
+ * @param {string} yr     - year "2026"
+ */
+function noiTruTimes(entry, mon, yr) {
+  const kind = classifyThu(entry.thu);
+  const pad  = pad2;
+
+  // Helper: build date string, clamped within month
+  const daysInMonth = new Date(parseInt(yr), parseInt(mon), 0).getDate();
+  const nextDay = Math.min(entry.day + 1, daysInMonth);
+  const dateStr     = `${pad(entry.day)}/${mon}/${yr}`;
+  const nextDateStr = `${pad(nextDay)}/${mon}/${yr}`;
+
+  // overnight end hour: 07 or 08 depending on whether next day is also holiday
+  function overnightEnd() {
+    return isHoliday(nextDay) ? '08:00' : '07:00';
+  }
+
+  switch (kind) {
+    case 't7_sang':
+      return { startTime: '12:00', endDate: dateStr,     endTime: '17:00' };
+    case 't7_toi':
+      return { startTime: '17:00', endDate: nextDateStr, endTime: '08:00' };
+    case 'cn_sang':
+    // holiday sáng behaves same as CN sáng
+      return { startTime: '08:00', endDate: dateStr,     endTime: '17:00' };
+    case 'cn_toi':
+      return { startTime: '17:00', endDate: nextDateStr, endTime: overnightEnd() };
+    case 'weekday':
+    default:
+      // Check if this is actually a holiday weekday (only Nội trú rows exist)
+      if (isHoliday(entry.day)) {
+        // Holiday during weekday - treat like CN based on sáng/tối
+        const t = (entry.thu || '').toLowerCase();
+        if (t.includes('sáng')) return { startTime: '08:00', endDate: dateStr, endTime: '17:00' };
+        if (t.includes('tối'))  return { startTime: '17:00', endDate: nextDateStr, endTime: overnightEnd() };
+        // Single row holiday (no sáng/tối label) → treat as full day 08-17
+        return { startTime: '08:00', endDate: dateStr, endTime: '17:00' };
+      }
+      return { startTime: '16:30', endDate: nextDateStr, endTime: '07:00' };
+  }
+}
+
+// ══════════════════════════════════════════
+//  DRAG & DROP
+// ══════════════════════════════════════════
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+function handleFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+// ══════════════════════════════════════════
+//  FILE PROCESSING
+// ══════════════════════════════════════════
+function processFile(file) {
+  clearAlert();
+  const validExt = /\.(xlsx|xls)$/i.test(file.name);
+  if (!validExt) { showAlert('error', '⚠️ Vui lòng chọn file Excel (.xlsx hoặc .xls)'); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      workbook = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileMeta').textContent =
+        `${workbook.SheetNames.length} sheet: ${workbook.SheetNames.join(', ')} · ${(file.size/1024).toFixed(1)} KB`;
+      document.getElementById('fileLoaded').classList.add('visible');
+      dropZone.style.display = 'none';
+
+      setStep(2);
+      autoDetectAndShowMapper();
+    } catch(err) {
+      showAlert('error', '❌ Không đọc được file Excel. Kiểm tra lại định dạng file.');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ══════════════════════════════════════════
+//  AUTO-DETECT SHEET & COLUMNS
+// ══════════════════════════════════════════
+function autoDetectAndShowMapper() {
+  // Pick best sheet (prefer sheet with "lịch" or "trực" in name)
+  let sheetName = workbook.SheetNames[0];
+  for (const s of workbook.SheetNames) {
+    const sl = s.toLowerCase();
+    if (sl.includes('lịch') || sl.includes('trực')) { sheetName = s; break; }
+  }
+
+  const ws = workbook.Sheets[sheetName];
+  const allData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  // Try to detect month/year from first row
+  const title = String(allData[0]?.[0] || '');
+  const m = title.match(/(\d{2})[\/\.\-](\d{4})/);
+  if (m) { monthYear.month = parseInt(m[1]); monthYear.year = parseInt(m[2]); }
+
+  // Find the location row (contains "Hoàng Mai" or "Tôn Thất Tùng") and shift row below it
+  let locRowIdx = -1;
+  let shiftRowIdx = -1;
+
+  for (let i = 0; i < Math.min(allData.length, 10); i++) {
+    const rowStr = allData[i].map(c => String(c));
+    const hasLoc = rowStr.some(c => c.includes('Hoàng Mai') || c.includes('Tôn Thất Tùng'));
+    const hasDay = rowStr.some(c => c.toLowerCase().includes('ngày') || c.toLowerCase() === 'ngay');
+    if (hasLoc || hasDay) {
+      locRowIdx = i;
+      if (i + 1 < allData.length) shiftRowIdx = i + 1;
+      break;
+    }
+  }
+
+  if (locRowIdx < 0) {
+    showAlert('error', '❌ Không tìm thấy hàng tiêu đề. Kiểm tra lại file Excel.');
+    return;
+  }
+
+  const locRow   = allData[locRowIdx];   // row with "Ngày", "Thứ", "Hoàng Mai", "Tôn Thất Tùng"...
+  const shiftRow = shiftRowIdx >= 0 ? allData[shiftRowIdx] : [];  // row with "Nội trú", "Đi sớm"...
+
+  // Forward-fill location from locRow (handles merged cells that appear as empty)
+  const colLocation = [];   // per-column location string (e.g. "Hoàng Mai")
+  const colShift    = [];   // per-column shift name (e.g. "Nội trú")
+  let lastLoc = '';
+
+  for (let ci = 0; ci < Math.max(locRow.length, shiftRow.length); ci++) {
+    const locVal   = String(locRow[ci]   || '').trim();
+    const shiftVal = String(shiftRow[ci] || '').trim();
+
+    // Detect if this cell is a location header
+    if (locVal.includes('Hoàng Mai') || locVal.toLowerCase().includes('hoàng mai')) lastLoc = 'Hoàng Mai';
+    else if (locVal.includes('Tôn Thất Tùng') || locVal.toLowerCase().includes('tôn thất tùng')) lastLoc = 'Tôn Thất Tùng';
+
+    // Cột ghi chú / phụ trách → không gán location (dùng chuỗi rỗng để đánh dấu bỏ qua)
+    const shiftLow = shiftVal.toLowerCase();
+    const locLow   = locVal.toLowerCase();
+    const isMeta   = locLow.includes('pk ') || locLow.startsWith('pk') ||
+                     locLow.includes('phụ trách') || shiftLow.includes('phụ trách') ||
+                     locLow.includes('ghi chú') || shiftLow.includes('ghi chú');
+    colLocation.push(isMeta ? '' : lastLoc);
+    colShift.push(shiftVal || locVal);
+  }
+
+  // Build column metadata
+  rawHeaders = colShift;
+  rawColLocations = colLocation;  // stored globally for parseSchedule
+
+  // Data rows start after shiftRow
+  const dataStartIdx = (shiftRowIdx >= 0 ? shiftRowIdx : locRowIdx) + 1;
+  rawRows = allData.slice(dataStartIdx).filter(r => r.some(c => String(c).trim()));
+
+  buildMapper(sheetName, colShift, colLocation, locRow);
+}
+
+function buildMapper(sheetName, colShift, colLocation, locRow) {
+  const panel = document.getElementById('mapperPanel');
+  const grid  = document.getElementById('colGrid');
+  const hint  = document.getElementById('colHint');
+  panel.classList.add('visible');
+
+  // Find day/thu columns from locRow
+  let guessDay = -1, guessThu = -1;
+  locRow.forEach((v, i) => {
+    const s = String(v).toLowerCase();
+    if (s.includes('ngày') || s === 'ngay') guessDay = i;
+    if (s.includes('thứ') || s === 'thu')   guessThu = i;
+  });
+
+  // Fallback: check colShift too
+  if (guessDay < 0) guessDay = colShift.findIndex(h => String(h).toLowerCase().includes('ngày'));
+  if (guessThu < 0) guessThu = colShift.findIndex(h => String(h).toLowerCase().includes('thứ'));
+
+  rawDayColIdx = guessDay;
+  rawThuColIdx = guessThu;
+
+  // Determine which shift cols are valid (have a shift name + a location)
+  const shiftColGuesses = colShift.map((h, i) => {
+    if (i === guessDay || i === guessThu) return null;
+    if (!h.trim()) return null;
+    const hl = h.toLowerCase();
+    if (hl.includes('ra trực')) return null;   // skip ra trực
+    if (!colLocation[i]) return null;           // no location → skip
+    if (hl.includes('nội') || hl.includes('đi sớm') ||
+        hl.includes('trực trưa') || hl.includes('phần mềm') || hl.includes('sớm')) return i;
+    return null;
+  }).filter(i => i !== null);
+
+  hint.innerHTML = `Sheet: <strong style="color:var(--accent2)">${sheetName}</strong> &nbsp;·&nbsp;
+    <strong style="color:var(--accent2)">${rawRows.length}</strong> dòng dữ liệu &nbsp;·&nbsp;
+    Địa điểm đọc từ hàng tiêu đề Excel
+    <br><span style="color:var(--text-muted);font-size:11px">Bỏ tích các cột không cần đưa vào Google Calendar.</span>`;
+
+  const colOpts = colShift.map((h, i) => `<option value="${i}">${i}: ${h || '(trống)'}</option>`).join('');
+  const noneOpt = '<option value="-1">— Không dùng —</option>';
+
+  let html = `
+    <div class="col-row">
+      <label class="col-label">🗓 Cột NGÀY</label>
+      <select class="col-select" id="colDay">${noneOpt}${colOpts}</select>
+    </div>
+    <div class="col-row">
+      <label class="col-label">📅 Cột THỨ</label>
+      <select class="col-select" id="colThu">${noneOpt}${colOpts}</select>
+    </div>`;
+
+  html += `<div style="grid-column:1/-1;margin-top:8px;">
+    <div class="col-label" style="margin-bottom:12px;">📋 CÁC CỘT CA TRỰC
+      <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">
+        — địa điểm được đọc tự động từ file Excel
+      </span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;" id="shiftColChecks">`;
+
+  colShift.forEach((h, i) => {
+    if (i === guessDay || i === guessThu || !h.trim()) return;
+    const hl = h.toLowerCase();
+    // Bỏ các cột ghi chú / phụ trách
+    if (hl.includes('pk ') || hl.includes('phụ trách') || hl.includes('phụ trach') ||
+        hl.startsWith('pk') || hl.includes('ghi chú') || hl.includes('note')) return;
+    const isRaTruc = hl.includes('ra trực');
+    const loc = colLocation[i] || '';
+    if (!loc && !isRaTruc) return;  // skip columns with no location detected
+
+    const isChecked = (!isRaTruc && shiftColGuesses.includes(i)) ? 'checked' : '';
+    const dimStyle  = isRaTruc ? 'opacity:0.4;' : '';
+    const raTag     = isRaTruc ? `<span style="font-size:10px;color:var(--text-muted)">(bỏ qua)</span>` : '';
+
+    const locColor  = loc.includes('Hoàng') ? 'var(--hm)' : 'var(--ttt)';
+    const locBadge  = loc
+      ? `<span style="font-size:10px;font-weight:700;color:${locColor};background:rgba(255,255,255,0.05);padding:2px 7px;border-radius:5px;flex-shrink:0">${loc}</span>`
+      : '';
+
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;${dimStyle}">
+      <input type="checkbox" value="${i}" ${isChecked} id="chk_col_${i}" style="accent-color:var(--accent);flex-shrink:0;width:14px;height:14px">
+      <label for="chk_col_${i}" style="flex:1;font-size:12px;color:var(--text-dim);cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h}">${h}${raTag}</label>
+      ${locBadge}
+    </div>`;
+  });
+
+  html += '</div></div>';
+  grid.innerHTML = html;
+
+  if (guessDay >= 0) document.getElementById('colDay').value = guessDay;
+  if (guessThu >= 0) document.getElementById('colThu').value = guessThu;
+}
+
+
+// ══════════════════════════════════════════
+//  PARSE SCHEDULE
+// ══════════════════════════════════════════
+function parseSchedule() {
+  clearAlert();
+  const dayColIdx = parseInt(document.getElementById('colDay').value);
+  const thuColIdx = parseInt(document.getElementById('colThu').value);
+
+  if (dayColIdx < 0) { showAlert('error', '⚠️ Vui lòng chọn cột NGÀY'); return; }
+
+  // Get checked shift columns
+  const shiftChecks = document.querySelectorAll('#shiftColChecks input[type=checkbox]:checked');
+  if (shiftChecks.length === 0) { showAlert('error', '⚠️ Vui lòng chọn ít nhất 1 cột ca trực'); return; }
+
+  const shiftCols = Array.from(shiftChecks).map(cb => {
+    const colIdx = parseInt(cb.value);
+    return {
+      idx: colIdx,
+      label: rawHeaders[colIdx] || `Cột ${colIdx}`,
+      location: rawColLocations[colIdx] || 'Không xác định',
+    };
+  });
+
+  // Parse rows
+  scheduleData = [];
+  let currentDay = null;
+  let currentThu = '';
+
+  rawRows.forEach(row => {
+    const rawDay = String(row[dayColIdx] || '').trim();
+    const rawThu = thuColIdx >= 0 ? String(row[thuColIdx] || '').trim() : '';
+
+    // Parse day
+    let day = null;
+    if (rawDay) {
+      // Might be "1/6", "1", "01", date object
+      if (rawDay.includes('/')) {
+        const parts = rawDay.split('/');
+        day = parseInt(parts[0]);
+        if (!monthYear.month) monthYear.month = parseInt(parts[1]);
+        if (!monthYear.year && parts[2]) monthYear.year = parseInt(parts[2]);
+      } else {
+        const parsed = parseInt(rawDay);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) day = parsed;
+      }
+    }
+
+    if (day) { currentDay = day; currentThu = rawThu || currentThu; }
+    else if (!currentDay) return; // skip rows before first day
+    
+    if (!currentDay) return;
+
+    shiftCols.forEach(sc => {
+      const val = String(row[sc.idx] || '').trim();
+      if (!val || val.toLowerCase() === 'nan') return;
+
+      // Split multiple names (comma or space)
+      const names = val.split(/,/).map(n => n.trim()).filter(n => n && n.length > 0 && n.length < 20);
+
+      names.forEach(name => {
+        if (name) {
+          scheduleData.push({
+            day: currentDay,
+            thu: rawThu || currentThu,
+            location: sc.location,
+            shift: sc.label,
+            name: cleanName(name),
+          });
+        }
+      });
+    });
+  });
+
+  if (scheduleData.length === 0) {
+    showAlert('error', '❌ Không trích xuất được dữ liệu. Kiểm tra lại cấu hình cột hoặc cấu trúc file Excel.');
+    return;
+  }
+
+  showAlert('info', `✅ Đã phân tích xong! Tìm thấy <strong>${scheduleData.length}</strong> ca trực từ ${[...new Set(scheduleData.map(r=>r.name))].length} nhân viên.`);
+  renderNameSelector();
+  setStep(3);
+}
+
+function cleanName(s) {
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+
+// ══════════════════════════════════════════
+//  NAME SELECTOR + TABLE
+// ══════════════════════════════════════════
+function renderNameSelector() {
+  const nameCount = {};
+  scheduleData.forEach(r => { nameCount[r.name] = (nameCount[r.name]||0)+1; });
+  const allNames = Object.keys(nameCount).sort((a,b) => a.localeCompare(b,'vi'));
+
+  document.getElementById('statPersons').textContent = allNames.length;
+  document.getElementById('statEntries').textContent = scheduleData.length;
+  document.getElementById('statDays').textContent = new Set(scheduleData.map(r=>r.day)).size;
+  document.getElementById('statSheet').textContent = monthYear.month ? `T${String(monthYear.month).padStart(2,'0')}` : '—';
+
+  document.getElementById('statsBar').classList.add('visible');
+
+  const grid = document.getElementById('nameGrid');
+  grid.innerHTML = '';
+  allNames.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'name-btn';
+    btn.innerHTML = `${name}<span class="count-badge">${nameCount[name]}</span>`;
+    btn.onclick = () => {
+      document.querySelectorAll('.name-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedName = name;
+      renderTable(name);
+      setStep(4);
+    };
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('selectorPanel').classList.add('visible');
+}
+
+function pad2(n) { return String(n).padStart(2,'0'); }
+
+function renderTable(name) {
+  const rows = scheduleData.filter(r => r.name === name);
+  rows.sort((a,b) => a.day - b.day || a.location.localeCompare(b.location));
+
+  document.getElementById('tableWrapper').classList.add('visible');
+  document.getElementById('tableTitle').textContent = `Ca trực của ${name} — ${rows.length} ca`;
+  document.getElementById('exportBtn').disabled = false;
+
+  const container = document.getElementById('tableContainer');
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div>Không tìm thấy ca trực</div></div>';
+    return;
+  }
+
+  const mon = monthYear.month ? pad2(monthYear.month) : '??';
+  const yr  = monthYear.year  || '????';
+
+  let html = `<table><thead><tr><th>Ngày</th><th>Thứ</th><th>Địa điểm</th><th>Ca trực</th><th>Bắt đầu</th><th>Kết thúc</th></tr></thead><tbody>`;
+  rows.forEach((r,i) => {
+    const locClass = r.location.includes('Hoàng') ? 'loc-hm' : r.location.includes('Tùng') || r.location.includes('TTT') ? 'loc-ttt' : 'loc-other';
+    let startTime = '—', endTimeDisplay = '—';
+    const shiftKey = r.shift.toLowerCase().trim();
+    if (shiftKey.includes('nội trú')) {
+      const t = noiTruTimes(r, mon, yr);
+      startTime = t.startTime;
+      const endDay = parseInt(t.endDate.split('/')[0]);
+      endTimeDisplay = endDay !== r.day
+        ? `${t.endTime}<span style="font-size:10px;color:var(--text-muted);display:block">ngày ${t.endDate}</span>`
+        : t.endTime;
+    } else {
+      const times = shiftTimes[shiftKey] || shiftTimes['default'];
+      startTime = `${pad2(times[0])}:${pad2(times[1])}`;
+      endTimeDisplay = `${pad2(times[2])}:${pad2(times[3])}`;
+    }
+    html += `<tr style="animation:rowIn .25s ease ${i*0.02}s both">
+      <td class="td-date">${pad2(r.day)}/${mon}/${yr}</td>
+      <td class="td-thu">${r.thu}</td>
+      <td><span class="location-badge ${locClass}">${r.location}</span></td>
+      <td><span class="shift-chip">${r.shift}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);white-space:nowrap">${startTime}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">${endTimeDisplay}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  html += '<style>@keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}</style>';
+  container.innerHTML = html;
+
+  showCSVPreview(name, rows, mon, yr);
+}
+
+function showCSVPreview(name, rows, mon, yr) {
+  const info = document.getElementById('csvInfo');
+  info.classList.add('visible');
+  if (!rows.length) return;
+  // Find a Nội trú row for preview if exists, else first row
+  const r = rows.find(x => x.shift.toLowerCase().includes('nội trú')) || rows[0];
+  const shiftKey = r.shift.toLowerCase().trim();
+  let startTime, endDate, endTime;
+  if (shiftKey.includes('nội trú')) {
+    const t = noiTruTimes(r, mon, yr);
+    startTime = t.startTime; endDate = t.endDate; endTime = t.endTime;
+  } else {
+    const times = shiftTimes[shiftKey] || shiftTimes['default'];
+    startTime = `${pad2(times[0])}:${pad2(times[1])}`;
+    endTime   = `${pad2(times[2])}:${pad2(times[3])}`;
+    endDate   = `${pad2(r.day)}/${mon}/${yr}`;
+  }
+  document.getElementById('csvPreview').innerHTML =
+    `<span style="color:#64748b">Subject,Start Date,Start Time,End Date,End Time,Description,Location</span>\n` +
+    `<span style="color:#93c5fd">${r.shift} - ${r.location},${pad2(r.day)}/${mon}/${yr},${startTime},${endDate},${endTime},"${name} - ${r.shift}","${r.location}"</span>`;
+}
+
+// ══════════════════════════════════════════
+//  EXPORT CSV
+// ══════════════════════════════════════════
+function exportCSV() {
+  if (!selectedName) return;
+  const rows = scheduleData.filter(r => r.name === selectedName);
+  rows.sort((a,b) => a.day - b.day);
+
+  const mon = monthYear.month ? pad2(monthYear.month) : '06';
+  const yr  = monthYear.year  || '2026';
+
+  const header = 'Subject,Start Date,Start Time,End Date,End Time,All Day Event,Description,Location';
+  const lines = [header];
+
+  rows.forEach(r => {
+    const shiftKey = r.shift.toLowerCase().trim();
+    const dateStr  = `${pad2(r.day)}/${mon}/${yr}`;
+    let startTime, endDate, endTime;
+
+    if (shiftKey.includes('nội trú')) {
+      // Use context-aware Nội trú rules
+      const t = noiTruTimes(r, mon, yr);
+      startTime = t.startTime;
+      endDate   = t.endDate;
+      endTime   = t.endTime;
+    } else {
+      const times = shiftTimes[shiftKey] || shiftTimes['default'];
+      startTime = `${pad2(times[0])}:${pad2(times[1])}`;
+      endTime   = `${pad2(times[2])}:${pad2(times[3])}`;
+      endDate   = dateStr;
+    }
+
+    lines.push([
+      `"${r.shift} - ${r.location}"`,
+      dateStr, startTime, endDate, endTime, 'FALSE',
+      `"${selectedName} - ${r.shift} tại ${r.location} (${r.thu})"`,
+      `"${r.location}"`,
+    ].join(','));
+  });
+
+  const csv = '\uFEFF' + lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lich_truc_${selectedName}_T${mon}_${yr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById(`step${i}`);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+}
+
+function showAlert(type, msg) {
+  const el = document.getElementById('alertBox');
+  el.className = `alert alert-${type} visible`;
+  el.innerHTML = msg;
+}
+
+function clearAlert() {
+  document.getElementById('alertBox').className = 'alert';
+}
+
+function resetAll() {
+  workbook = null; rawHeaders = []; rawRows = []; rawColLocations = [];
+  rawDayColIdx = -1; rawThuColIdx = -1;
+  scheduleData = []; selectedName = null;
+  monthYear = { month: null, year: null };
+  document.getElementById('dropZone').style.display = '';
+  document.getElementById('fileLoaded').classList.remove('visible');
+  document.getElementById('fileInput').value = '';
+  document.getElementById('mapperPanel').classList.remove('visible');
+  document.getElementById('statsBar').classList.remove('visible');
+  document.getElementById('selectorPanel').classList.remove('visible');
+  document.getElementById('tableWrapper').classList.remove('visible');
+  document.getElementById('csvInfo').classList.remove('visible');
+  document.getElementById('colGrid').innerHTML = '';
+  document.getElementById('nameGrid').innerHTML = '';
+  document.getElementById('tableContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">👆</div><div>Chọn tên để xem lịch</div></div>';
+  clearAlert();
+  setStep(1);
+}
+</script>
+</body>
+</html>
