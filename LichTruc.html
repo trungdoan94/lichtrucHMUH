@@ -495,19 +495,19 @@ function classifyThu(thu) {
   return 'weekday';
 }
 
-// Returns true if `day` is a "nghỉ lễ" day = no normal work shifts on that day
-// Ngày lễ = chỉ có ca Nội trú, không có Đi sớm hay Trực trưa
-function isHoliday(day) {
+// Returns true if `day/month` is a "nghỉ lễ" = no Đi sớm or Trực trưa on that day
+function isHoliday(day, month) {
   const normalShifts = ['đi sớm', 'trực trưa'];
   return !scheduleData.some(r =>
     r.day === day &&
+    (month == null || (r.month || month) === month) &&
     normalShifts.some(ns => r.shift.toLowerCase().includes(ns))
   );
 }
 
 /**
  * Returns { startTime, endDate, endTime } for a Nội trú entry.
- * @param {object} entry  - { day, thu, ... }
+ * @param {object} entry  - { day, thu, month, year, ... }
  * @param {string} mon    - zero-padded month "06"
  * @param {string} yr     - year "2026"
  */
@@ -515,15 +515,32 @@ function noiTruTimes(entry, mon, yr) {
   const kind = classifyThu(entry.thu);
   const pad  = pad2;
 
-  // Helper: build date string, clamped within month
-  const daysInMonth = new Date(parseInt(yr), parseInt(mon), 0).getDate();
-  const nextDay = Math.min(entry.day + 1, daysInMonth);
+  const monInt = parseInt(mon);
+  const yrInt  = parseInt(yr);
+
+  // Compute next calendar day — roll over to next month if needed
+  const daysInMonth = new Date(yrInt, monInt, 0).getDate();
+  let nextDay = entry.day + 1;
+  let nextMon = monInt;
+  let nextYr  = yrInt;
+  if (nextDay > daysInMonth) {
+    nextDay = 1;
+    nextMon = monInt + 1;
+    if (nextMon > 12) { nextMon = 1; nextYr++; }
+  }
+
   const dateStr     = `${pad(entry.day)}/${mon}/${yr}`;
-  const nextDateStr = `${pad(nextDay)}/${mon}/${yr}`;
+  const nextDateStr = `${pad(nextDay)}/${pad(nextMon)}/${nextYr}`;
 
   // overnight end hour: 07 or 08 depending on whether next day is also holiday
   function overnightEnd() {
-    return isHoliday(nextDay) ? '08:00' : '07:00';
+    // Look up next day entries — match by day AND month
+    const nextDayIsHoliday = !scheduleData.some(r =>
+      r.day === nextDay &&
+      (r.month || monInt) === nextMon &&
+      ['đi sớm', 'trực trưa'].some(ns => r.shift.toLowerCase().includes(ns))
+    );
+    return nextDayIsHoliday ? '08:00' : '07:00';
   }
 
   switch (kind) {
@@ -539,7 +556,7 @@ function noiTruTimes(entry, mon, yr) {
     case 'weekday':
     default:
       // Check if this is actually a holiday weekday (only Nội trú rows exist)
-      if (isHoliday(entry.day)) {
+      if (isHoliday(entry.day, entry.month || monInt)) {
         // Holiday during weekday - treat like CN based on sáng/tối
         const t = (entry.thu || '').toLowerCase();
         if (t.includes('sáng')) return { startTime: '08:00', endDate: dateStr, endTime: '17:00' };
@@ -788,29 +805,37 @@ function parseSchedule() {
   scheduleData = [];
   let currentDay = null;
   let currentThu = '';
+  let currentMonth = monthYear.month || null;
+  let currentYear  = monthYear.year  || null;
 
   rawRows.forEach(row => {
     const rawDay = String(row[dayColIdx] || '').trim();
     const rawThu = thuColIdx >= 0 ? String(row[thuColIdx] || '').trim() : '';
 
-    // Parse day
-    let day = null;
+    // Parse day — handle "1/6", "01/9", "1", "01"
+    let day = null, rowMonth = currentMonth, rowYear = currentYear;
     if (rawDay) {
-      // Might be "1/6", "1", "01", date object
       if (rawDay.includes('/')) {
         const parts = rawDay.split('/');
         day = parseInt(parts[0]);
-        if (!monthYear.month) monthYear.month = parseInt(parts[1]);
-        if (!monthYear.year && parts[2]) monthYear.year = parseInt(parts[2]);
+        if (parts[1]) rowMonth = parseInt(parts[1]);
+        if (parts[2]) rowYear  = parseInt(parts[2]);
+        // First occurrence sets base month/year
+        if (!monthYear.month && rowMonth) monthYear.month = rowMonth;
+        if (!monthYear.year  && rowYear)  monthYear.year  = rowYear;
       } else {
         const parsed = parseInt(rawDay);
         if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) day = parsed;
       }
     }
 
-    if (day) { currentDay = day; currentThu = rawThu || currentThu; }
-    else if (!currentDay) return; // skip rows before first day
-    
+    if (day) {
+      currentDay   = day;
+      currentMonth = rowMonth || currentMonth;
+      currentYear  = rowYear  || currentYear;
+      currentThu   = rawThu || currentThu;
+    } else if (!currentDay) return;
+
     if (!currentDay) return;
 
     shiftCols.forEach(sc => {
@@ -824,6 +849,8 @@ function parseSchedule() {
         if (name) {
           scheduleData.push({
             day: currentDay,
+            month: currentMonth,
+            year: currentYear,
             thu: rawThu || currentThu,
             location: sc.location,
             shift: sc.label,
@@ -887,7 +914,13 @@ function pad2(n) { return String(n).padStart(2,'0'); }
 
 function renderTable(name) {
   const rows = scheduleData.filter(r => r.name === name);
-  rows.sort((a,b) => a.day - b.day || a.location.localeCompare(b.location));
+  // Sort by month → day → location
+  rows.sort((a,b) => {
+    const am = a.month || 0, bm = b.month || 0;
+    if (am !== bm) return am - bm;
+    if (a.day !== b.day) return a.day - b.day;
+    return a.location.localeCompare(b.location);
+  });
 
   document.getElementById('tableWrapper').classList.add('visible');
   document.getElementById('tableTitle').textContent = `Ca trực của ${name} — ${rows.length} ca`;
@@ -899,40 +932,57 @@ function renderTable(name) {
     return;
   }
 
-  const mon = monthYear.month ? pad2(monthYear.month) : '??';
-  const yr  = monthYear.year  || '????';
+  // Use per-row month/year for display
+  const defaultMon = monthYear.month ? pad2(monthYear.month) : '??';
+  const defaultYr  = monthYear.year  || '????';
 
   let html = `<table><thead><tr><th>Ngày</th><th>Thứ</th><th>Địa điểm</th><th>Ca trực</th><th>Bắt đầu</th><th>Kết thúc</th></tr></thead><tbody>`;
   rows.forEach((r,i) => {
+    const rMon = r.month ? pad2(r.month) : defaultMon;
+    const rYr  = r.year  || defaultYr;
     const locClass = r.location.includes('Hoàng') ? 'loc-hm' : r.location.includes('Tùng') || r.location.includes('TTT') ? 'loc-ttt' : 'loc-other';
     let startTime = '—', endTimeDisplay = '—';
     const shiftKey = r.shift.toLowerCase().trim();
+    const isTTT    = r.location.includes('Tôn Thất Tùng') || r.location.includes('TTT');
     if (shiftKey.includes('nội trú')) {
-      const t = noiTruTimes(r, mon, yr);
+      const t = noiTruTimes(r, rMon, rYr);
       startTime = t.startTime;
       const endDay = parseInt(t.endDate.split('/')[0]);
-      endTimeDisplay = endDay !== r.day
+      const isOvernight = endDay !== r.day;
+      const note = (isTTT && isOvernight) ? getTTTEarlyNote(endDay, r.month) : '';
+      const noteHtml = note
+        ? `<span style="font-size:10px;color:var(--text-muted);display:block;margin-top:2px">${note}</span>`
+        : '';
+      endTimeDisplay = isOvernight
         ? `${t.endTime}<span style="font-size:10px;color:var(--text-muted);display:block">ngày ${t.endDate}</span>`
         : t.endTime;
+      html += `<tr style="animation:rowIn .25s ease ${i*0.02}s both">
+        <td class="td-date">${pad2(r.day)}/${rMon}/${rYr}</td>
+        <td class="td-thu">${r.thu}</td>
+        <td><span class="location-badge ${locClass}">${r.location}</span></td>
+        <td><span class="shift-chip">${r.shift}</span>${noteHtml}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);white-space:nowrap">${startTime}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">${endTimeDisplay}</td>
+      </tr>`;
     } else {
       const times = shiftTimes[shiftKey] || shiftTimes['default'];
       startTime = `${pad2(times[0])}:${pad2(times[1])}`;
       endTimeDisplay = `${pad2(times[2])}:${pad2(times[3])}`;
+      html += `<tr style="animation:rowIn .25s ease ${i*0.02}s both">
+        <td class="td-date">${pad2(r.day)}/${rMon}/${rYr}</td>
+        <td class="td-thu">${r.thu}</td>
+        <td><span class="location-badge ${locClass}">${r.location}</span></td>
+        <td><span class="shift-chip">${r.shift}</span></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);white-space:nowrap">${startTime}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">${endTimeDisplay}</td>
+      </tr>`;
     }
-    html += `<tr style="animation:rowIn .25s ease ${i*0.02}s both">
-      <td class="td-date">${pad2(r.day)}/${mon}/${yr}</td>
-      <td class="td-thu">${r.thu}</td>
-      <td><span class="location-badge ${locClass}">${r.location}</span></td>
-      <td><span class="shift-chip">${r.shift}</span></td>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);white-space:nowrap">${startTime}</td>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">${endTimeDisplay}</td>
-    </tr>`;
   });
   html += '</tbody></table>';
   html += '<style>@keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}</style>';
   container.innerHTML = html;
 
-  showCSVPreview(name, rows, mon, yr);
+  showCSVPreview(name, rows, defaultMon, defaultYr);
 }
 
 function showCSVPreview(name, rows, mon, yr) {
@@ -960,37 +1010,87 @@ function showCSVPreview(name, rows, mon, yr) {
 // ══════════════════════════════════════════
 //  EXPORT CSV
 // ══════════════════════════════════════════
+
+// Nhãn viết tắt cho từng ca đi sớm TTT
+const earlyShiftLabel = {
+  'đi sớm a2':                  'A2',
+  'đi sớm a5':                  'A5',
+  'đi sớm a2 mở rộng':          'A2MR',
+  'đi sớm phần mềm 6h30':       'PM',
+  'đi sớm':                     'DS',   // fallback
+};
+
+/**
+ * Trả về chuỗi ghi chú ca đi sớm TTT hôm sau.
+ * VD: " (A2: Trung, A5: Toàn, A2MR: Đạt)"
+ * @param {number} nextDay   - ngày hôm sau (số)
+ * @param {number} nextMonth - tháng của ngày hôm sau
+ */
+function getTTTEarlyNote(nextDay, nextMonth) {
+  const isTTT = loc => loc && (loc.includes('Tôn Thất Tùng') || loc.includes('TTT'));
+
+  // Gom tất cả ca đi sớm TTT của nextDay (cùng tháng)
+  const grouped = {};
+  scheduleData.forEach(r => {
+    if (r.day !== nextDay) return;
+    if (nextMonth && r.month && r.month !== nextMonth) return;
+    if (!isTTT(r.location)) return;
+    const sk = r.shift.toLowerCase().trim();
+    if (!sk.includes('đi sớm')) return;
+    const label = earlyShiftLabel[sk] || r.shift;
+    if (!grouped[label]) grouped[label] = [];
+    if (!grouped[label].includes(r.name)) grouped[label].push(r.name);
+  });
+
+  const parts = Object.entries(grouped).map(([label, names]) => `${label}: ${names.join(', ')}`);
+  return parts.length ? ` (${parts.join(', ')})` : '';
+}
 function exportCSV() {
   if (!selectedName) return;
   const rows = scheduleData.filter(r => r.name === selectedName);
-  rows.sort((a,b) => a.day - b.day);
+  // Sort by month → day
+  rows.sort((a,b) => {
+    const am = a.month || 0, bm = b.month || 0;
+    if (am !== bm) return am - bm;
+    return a.day - b.day;
+  });
 
-  const mon = monthYear.month ? pad2(monthYear.month) : '06';
-  const yr  = monthYear.year  || '2026';
+  const defaultMon = monthYear.month ? pad2(monthYear.month) : '06';
+  const defaultYr  = monthYear.year  || '2026';
 
   const header = 'Subject,Start Date,Start Time,End Date,End Time,All Day Event,Description,Location';
   const lines = [header];
 
   rows.forEach(r => {
+    const rMon    = r.month ? pad2(r.month) : defaultMon;
+    const rYr     = r.year  || defaultYr;
     const shiftKey = r.shift.toLowerCase().trim();
-    const dateStr  = `${pad2(r.day)}/${mon}/${yr}`;
-    let startTime, endDate, endTime;
+    const dateStr  = `${pad2(r.day)}/${rMon}/${rYr}`;
+    const isTTT    = r.location.includes('Tôn Thất Tùng') || r.location.includes('TTT');
+    let startTime, endDate, endTime, subject;
 
     if (shiftKey.includes('nội trú')) {
-      // Use context-aware Nội trú rules
-      const t = noiTruTimes(r, mon, yr);
+      const t = noiTruTimes(r, rMon, rYr);
       startTime = t.startTime;
       endDate   = t.endDate;
       endTime   = t.endTime;
+
+      // Xác định tháng của ngày kết thúc (có thể sang tháng sau)
+      const endDay = parseInt(t.endDate.split('/')[0]);
+      const endMon = parseInt(t.endDate.split('/')[1]);
+      const isOvernight = endDay !== r.day || endMon !== (r.month || parseInt(defaultMon));
+      const note = (isTTT && isOvernight) ? getTTTEarlyNote(endDay, endMon) : '';
+      subject = `${r.shift} - ${r.location}${note}`;
     } else {
       const times = shiftTimes[shiftKey] || shiftTimes['default'];
       startTime = `${pad2(times[0])}:${pad2(times[1])}`;
       endTime   = `${pad2(times[2])}:${pad2(times[3])}`;
       endDate   = dateStr;
+      subject   = `${r.shift} - ${r.location}`;
     }
 
     lines.push([
-      `"${r.shift} - ${r.location}"`,
+      `"${subject}"`,
       dateStr, startTime, endDate, endTime, 'FALSE',
       `"${selectedName} - ${r.shift} tại ${r.location} (${r.thu})"`,
       `"${r.location}"`,
@@ -1002,7 +1102,7 @@ function exportCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `lich_truc_${selectedName}_T${mon}_${yr}.csv`;
+  a.download = `lich_truc_${selectedName}_T${defaultMon}_${defaultYr}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
