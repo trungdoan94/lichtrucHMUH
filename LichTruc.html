@@ -801,6 +801,9 @@ function buildMapper(sheetName, colShift, colLocation, locRow) {
 // ══════════════════════════════════════════
 //  PARSE SCHEDULE
 // ══════════════════════════════════════════
+// Values that mean leave/absence — not a staff name
+const LEAVE_ABBREVS = new Set(['nb', 'np', 'nl', 'nts', 'nnn', 'off', 'ngh', 'nghi', 'nghỉ']);
+
 function parseSchedule() {
   clearAlert();
   const dayColIdx = parseInt(document.getElementById('colDay').value);
@@ -863,7 +866,14 @@ function parseSchedule() {
       if (!val || val.toLowerCase() === 'nan') return;
 
       // Split multiple names (comma or space)
-      const names = val.split(/,/).map(n => n.trim()).filter(n => n && n.length > 0 && n.length < 20);
+      const names = val.split(/,/).map(n => n.trim()).filter(n => {
+        if (!n || n.length === 0 || n.length >= 20) return false;
+        // Skip known leave/absence abbreviations (case-insensitive)
+        if (LEAVE_ABBREVS.has(n.toLowerCase())) return false;
+        // Skip values that are purely numeric
+        if (/^\d+$/.test(n)) return false;
+        return true;
+      });
 
       names.forEach(name => {
         if (name) {
