@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lịch Trực — Trích xuất Google Calendar</title>
+<!-- Unresolved: SheetJS 0.18.5 has known CVEs. Official 0.20.3 download was blocked; no unverified bundle is embedded. Requires network. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #080c18;
@@ -287,23 +287,12 @@ td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align
 .location-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
 .loc-hm { background: rgba(245,158,11,0.1); color: var(--hm); border: 1px solid rgba(245,158,11,0.2); }
 .loc-ttt { background: rgba(16,185,129,0.1); color: var(--ttt); border: 1px solid rgba(16,185,129,0.2); }
-.loc-other { background: rgba(139,92,246,0.1); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.2); }
 
-.shift-chip { display: inline-block; background: rgba(59,126,248,0.08); border: 1px solid rgba(59,126,248,0.18); border-radius: 6px; padding: 3px 10px; font-size: 11.5px; color: #93c5fd; font-weight: 500; }
 
 .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
 .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
 
-.gcal-btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: white; border: none; border-radius: 8px; padding: 9px 16px;
-  color: #3c4043; font-family: 'Be Vietnam Pro', sans-serif; font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  text-decoration: none;
-}
-.gcal-btn:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.35); transform: translateY(-1px); }
-.gcal-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.gcal-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.csv-info {
   display: none; background: var(--surface); border: 1px solid var(--border);
   border-radius: 12px; padding: 18px 22px; margin-bottom: 24px;
 }
@@ -312,7 +301,7 @@ td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align
 .csv-preview {
   font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);
   background: var(--bg); border-radius: 8px; padding: 12px 16px;
-  overflow-x: auto; white-space: nowrap; border: 1px solid var(--border);
+  overflow-x: auto; white-space: pre; max-height: 320px; border: 1px solid var(--border);
 }
 .tip-box {
   display: flex; gap: 10px; align-items: flex-start; margin-top: 12px;
@@ -340,34 +329,336 @@ td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align
 .step.active .step-text { color: var(--text); }
 .step.done .step-text { color: var(--green); }
 .step-sep { flex: 1; height: 1px; background: var(--border); margin: 0 12px; min-width: 20px; }
+
+/* ── 2026 responsive interface refresh ── */
+:root {
+  --bg: #f3f6fb;
+  --surface: #ffffff;
+  --surface2: #f7f9fc;
+  --surface3: #edf2f8;
+  --border: #dfe6ef;
+  --border2: #cbd6e4;
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent2: #0891b2;
+  --accent3: #7c3aed;
+  --text: #142033;
+  --text-dim: #44546a;
+  --text-muted: #66768b;
+  --hm: #a16207;
+  --ttt: #047857;
+  --green: #15803d;
+  --red: #dc2626;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 20px rgba(15, 23, 42, .05);
+  --shadow-md: 0 14px 40px rgba(30, 64, 175, .10);
+  --radius: 18px;
+  color-scheme: light;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  background:
+    radial-gradient(circle at 12% -8%, rgba(37, 99, 235, .10), transparent 30rem),
+    radial-gradient(circle at 100% 4%, rgba(14, 165, 233, .08), transparent 28rem);
+}
+body::after { display: none; }
+button, input, select, summary { font: inherit; }
+button, summary, label, select { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .28);
+  outline-offset: 3px;
+}
+a { color: var(--accent-dark); text-underline-offset: 3px; }
+.container { max-width: 1160px; padding: 0 24px 96px; }
+
+header { padding: 36px 0 24px; text-align: left; }
+.hero-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.logo-row { margin: 0; flex: 0 0 auto; }
+.logo-icon {
+  width: 48px; height: 48px; border-radius: 15px; font-size: 0;
+  color: white; background: linear-gradient(145deg, #2563eb, #4f46e5);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .24);
+}
+.logo-icon svg { width: 25px; height: 25px; }
+.brand-copy { min-width: 0; }
+h1 {
+  font-size: clamp(24px, 3vw, 34px); color: var(--text); background: none;
+  -webkit-text-fill-color: currentColor; letter-spacing: -.035em; line-height: 1.15;
+}
+.header-sub { color: var(--text-muted); font-size: 14px; margin-top: 5px; }
+.local-badge {
+  display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  padding: 9px 12px; border: 1px solid #bbf7d0; border-radius: 999px;
+  background: #f0fdf4; color: #166534; font-size: 12px; font-weight: 700;
+}
+.local-badge svg { width: 16px; height: 16px; }
+
+.steps {
+  padding: 8px; margin-bottom: 24px; border-radius: 16px; border-color: var(--border);
+  box-shadow: var(--shadow-sm); overflow: visible;
+}
+.step { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 11px; justify-content: center; }
+.step.active { background: var(--accent-soft); }
+.step-circle {
+  width: 26px; height: 26px; border: 0; background: var(--surface3); color: var(--text-muted);
+}
+.step.active .step-circle { background: var(--accent); box-shadow: none; }
+.step.done .step-circle { background: var(--green); border: 0; }
+.step-text { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.step.active .step-text { color: var(--accent-dark); }
+.step.done .step-text { color: var(--green); }
+.step-sep { flex: 0 0 24px; min-width: 0; margin: 0 2px; background: var(--border2); }
+
+.upload-section { margin-bottom: 18px; }
+.drop-zone {
+  border: 1.5px dashed #aebed2; border-radius: var(--radius); padding: 44px 24px;
+  background: var(--surface); box-shadow: var(--shadow-sm);
+}
+.drop-zone::before { background: linear-gradient(145deg, rgba(37, 99, 235, .045), rgba(14, 165, 233, .02)); }
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-1px);
+}
+.upload-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px;
+  margin-bottom: 14px; border-radius: 18px; color: var(--accent);
+  background: var(--accent-soft); animation: none; font-size: 0;
+}
+.upload-icon svg { width: 30px; height: 30px; }
+.drop-title { font-size: 19px; color: var(--text); margin-bottom: 6px; }
+.drop-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+.upload-btn, .parse-btn, .export-btn {
+  min-height: 44px; border-radius: 11px; font-family: inherit; box-shadow: none;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.upload-btn { padding: 11px 20px; background: var(--accent); }
+.upload-btn:hover, .parse-btn:hover, .export-btn:hover {
+  transform: translateY(-1px); box-shadow: 0 8px 20px rgba(37, 99, 235, .20);
+}
+.file-loaded {
+  background: #f0fdf4; border-color: #bbf7d0; border-radius: 14px;
+  padding: 14px 16px; box-shadow: var(--shadow-sm);
+}
+.file-icon { display: inline-flex; color: var(--green); font-size: 0; }
+.file-icon svg { width: 26px; height: 26px; }
+.file-name { color: #166534; }
+.change-btn { min-height: 40px; padding: 8px 14px; color: var(--text-dim); background: white; }
+.change-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+.alert { border-radius: 12px; font-size: 13px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+.alert-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.alert-error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+.mapper-panel, .selector-panel, .table-wrapper, .csv-info {
+  background: var(--surface); border-color: var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.mapper-panel, .selector-panel { padding: 24px; margin-bottom: 20px; }
+.mapper-panel::before, .selector-panel::before { display: none; }
+.panel-heading { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 18px; }
+.panel-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 38px; height: 38px; border-radius: 11px; color: var(--accent);
+  background: var(--accent-soft);
+}
+.panel-icon svg { width: 20px; height: 20px; }
+.panel-copy { min-width: 0; }
+.mapper-title, .selector-label {
+  color: var(--text); font-size: 16px; line-height: 1.3; text-transform: none;
+  letter-spacing: -.01em; margin: 0; font-weight: 800;
+}
+.panel-description { margin-top: 3px; color: var(--text-muted); font-size: 13px; }
+.col-hint { color: var(--text-muted); background: var(--surface2); border-radius: 10px; padding: 10px 12px; }
+#sheetPicker { margin-bottom: 14px; }
+#sheetPicker label { display: grid; gap: 6px; color: var(--text-dim); font-size: 12px; font-weight: 700; }
+.col-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.col-row {
+  position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; min-height: 52px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface2);
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.col-row:hover { border-color: #93b4f8; background: #f8fbff; }
+.col-row:has(input:checked) { border-color: #93b4f8; background: var(--accent-soft); }
+.col-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+.col-label { color: var(--text); font-size: 13px; letter-spacing: 0; }
+.col-select { min-height: 44px; background: white; color: var(--text); border-color: var(--border2); }
+.parse-btn { width: 100%; background: var(--accent); padding: 12px 22px; }
+
+.stats-bar { gap: 12px; margin-bottom: 20px; }
+.stat-card { border-color: var(--border); border-radius: 14px; padding: 16px; text-align: left; box-shadow: var(--shadow-sm); }
+.stat-card:hover { border-color: var(--border); }
+.stat-num { font-family: inherit; font-size: 25px; color: var(--text); background: none; -webkit-text-fill-color: currentColor; }
+.stat-label { color: var(--text-muted); font-size: 11px; letter-spacing: .04em; }
+
+.name-grid { gap: 9px; }
+.name-btn {
+  min-height: 44px; padding: 9px 14px; color: var(--text-dim); background: white;
+  border: 1px solid var(--border2); border-radius: 11px; font-family: inherit;
+}
+.name-btn:hover { color: var(--accent-dark); background: var(--accent-soft); transform: none; }
+.name-btn.active { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-soft); box-shadow: 0 0 0 2px rgba(37, 99, 235, .10); }
+.count-badge { color: var(--accent-dark); background: #dbeafe; font-family: inherit; }
+
+.table-wrapper { margin-bottom: 20px; }
+.table-header-bar { padding: 18px 20px; gap: 16px; }
+.table-title { font-size: 15px; }
+.dot { background: var(--accent); box-shadow: none; animation: none; }
+.table-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.export-btn { padding: 10px 16px; background: var(--accent); justify-content: center; }
+.export-btn.secondary { color: var(--accent-dark); background: white; border: 1px solid var(--border2); }
+.export-btn.google-btn { background: #1a73e8; color: white; }
+.export-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+thead th { background: var(--surface2); color: var(--text-muted); font-size: 10px; letter-spacing: .08em; }
+tbody tr { border-color: var(--border); }
+tbody tr:hover { background: #f8fbff; }
+td { color: var(--text-dim); }
+.td-date { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--text); }
+.td-thu { color: var(--text-muted); }
+.location-badge { border-radius: 999px; padding: 4px 9px; }
+.loc-hm { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.loc-ttt { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+
+.csv-info { padding: 0; overflow: hidden; }
+.csv-details > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 58px; padding: 15px 20px; color: var(--text); font-weight: 750;
+  cursor: pointer; list-style: none;
+}
+.csv-details > summary::-webkit-details-marker { display: none; }
+.csv-details > summary::after { content: '+'; color: var(--accent); font-size: 22px; font-weight: 500; }
+.csv-details[open] > summary::after { content: '−'; }
+.csv-details[open] > summary { border-bottom: 1px solid var(--border); }
+.csv-content { padding: 18px 20px 20px; }
+.csv-info-title { color: var(--text-muted); margin-bottom: 10px; }
+.csv-preview { color: #dbeafe; background: #172033; border-color: #27344a; max-height: 260px; }
+.tip-box { margin-top: 16px; background: #f0f9ff; border-color: #bae6fd; color: var(--text-dim); }
+.import-steps { display: grid; gap: 6px; padding-left: 20px; }
+.mobile-actions { display: none; }
+
+@media (max-width: 767px) {
+  .container { padding: 0 14px calc(108px + env(safe-area-inset-bottom)); }
+  header { padding: 22px 2px 18px; }
+  .hero-row { align-items: flex-start; }
+  .logo-icon { width: 42px; height: 42px; border-radius: 13px; }
+  .local-badge { display: none; }
+  h1 { font-size: 23px; }
+  .header-sub { font-size: 12.5px; }
+  .steps { padding: 6px; margin-bottom: 16px; }
+  .step { padding: 7px 3px; gap: 5px; }
+  .step-circle { width: 24px; height: 24px; font-size: 11px; }
+  .step-text { font-size: 10px; }
+  .step-sep { display: none; }
+  .drop-zone { padding: 32px 16px; }
+  .drop-title { font-size: 17px; }
+  .drop-sub { max-width: 280px; margin-left: auto; margin-right: auto; }
+  .file-loaded { align-items: flex-start; flex-wrap: wrap; }
+  .file-info { min-width: 0; }
+  .file-name { overflow-wrap: anywhere; }
+  .mapper-panel, .selector-panel { padding: 18px 16px; }
+  .panel-heading { margin-bottom: 14px; }
+  .col-grid { grid-template-columns: 1fr; }
+  .stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .stat-card { padding: 13px 14px; }
+  .stat-num { font-size: 22px; }
+  .name-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .name-btn { display: flex; align-items: center; justify-content: space-between; min-width: 0; padding: 9px 11px; }
+  .table-header-bar { padding: 16px; }
+  .table-actions { display: none; }
+  table, tbody { display: block; }
+  thead { display: none; }
+  tbody { padding: 10px; background: var(--surface2); }
+  tbody tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 11px 14px;
+    padding: 15px; margin-bottom: 10px; background: white; border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+  }
+  tbody tr:last-child { margin-bottom: 0; border-bottom: 1px solid var(--border); }
+  tbody tr:hover { background: white; }
+  td { display: block; padding: 0; font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+  td::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--text-muted); font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+  td:nth-child(3), td:nth-child(4) { grid-column: 1 / -1; }
+  .csv-details > summary { padding: 14px 16px; }
+  .csv-content { padding: 14px; }
+  .csv-preview { font-size: 10px; }
+  .mobile-actions {
+    display: grid; grid-template-columns: minmax(0, .75fr) minmax(0, 1.4fr); gap: 8px;
+    position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, .94); border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, .10); backdrop-filter: blur(12px);
+  }
+  .mobile-actions .export-btn { width: 100%; padding: 9px 8px; font-size: 12px; }
+}
+
+@media (max-width: 379px) {
+  .container { padding-left: 10px; padding-right: 10px; }
+  .brand { gap: 10px; }
+  .logo-icon { width: 38px; height: 38px; }
+  h1 { font-size: 20px; }
+  .header-sub { font-size: 11.5px; }
+  .step-text { display: none; }
+  .step { padding: 7px; }
+  .name-grid { grid-template-columns: 1fr; }
+  .mobile-actions { padding-left: 10px; padding-right: 10px; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container { max-width: 860px; }
+  .col-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .step-sep { flex-basis: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
 </style>
 </head>
 <body>
-<div class="container">
+<main class="container">
 
   <header>
-    <div class="logo-row">
-      <div class="logo-icon">📋</div>
+    <div class="hero-row">
+      <div class="brand">
+        <div class="logo-row">
+          <div class="logo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18M8 13h3M8 17h5"/></svg>
+          </div>
+        </div>
+        <div class="brand-copy">
+          <h1>Lịch trực cá nhân</h1>
+          <p class="header-sub">Từ file Excel đến Google Calendar trong vài bước</p>
+        </div>
+      </div>
+      <div class="local-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+        Dữ liệu xử lý trên thiết bị
+      </div>
     </div>
-    <h1>Lịch Trực → Google Calendar</h1>
-    <p class="header-sub">Upload file Excel lịch trực · Chọn tên · Xuất CSV nhập thẳng vào Google Calendar</p>
   </header>
 
   <!-- Steps -->
   <div class="steps" id="stepsBar">
-    <div class="step active" id="step1">
+    <div class="step active" id="step1" aria-current="step">
       <div class="step-circle">1</div>
-      <span class="step-text">Upload Excel</span>
+      <span class="step-text">Chọn file</span>
     </div>
     <div class="step-sep"></div>
     <div class="step" id="step2">
       <div class="step-circle">2</div>
-      <span class="step-text">Xác nhận cột</span>
+      <span class="step-text">Kiểm tra ca</span>
     </div>
     <div class="step-sep"></div>
     <div class="step" id="step3">
       <div class="step-circle">3</div>
-      <span class="step-text">Chọn tên</span>
+      <span class="step-text">Chọn người</span>
     </div>
     <div class="step-sep"></div>
     <div class="step" id="step4">
@@ -378,18 +669,20 @@ td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align
 
   <!-- Upload -->
   <div class="upload-section">
-    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <span class="upload-icon">📊</span>
-      <div class="drop-title">Kéo thả file Excel vào đây</div>
-      <div class="drop-sub">Hỗ trợ <span>.xlsx</span> và <span>.xls</span> · Dữ liệu xử lý ngay trên trình duyệt, không gửi lên server</div>
-      <button class="upload-btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
-        📂 Chọn file Excel
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" role="button" tabindex="0" aria-label="Chọn hoặc kéo thả file Excel lịch trực">
+      <span class="upload-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+      </span>
+      <div class="drop-title">Thả file lịch trực vào đây</div>
+      <div class="drop-sub">File Excel .xlsx hoặc .xls · Không tải dữ liệu lên máy chủ</div>
+      <button type="button" class="upload-btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+        Chọn file Excel
       </button>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
 
     <div class="file-loaded" id="fileLoaded">
-      <span class="file-icon">✅</span>
+      <span class="file-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>
       <div class="file-info">
         <div class="file-name" id="fileName">—</div>
         <div class="file-meta" id="fileMeta">—</div>
@@ -399,14 +692,20 @@ td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align
   </div>
 
   <!-- Alert -->
-  <div class="alert" id="alertBox"></div>
+  <div class="alert" id="alertBox" role="status" aria-live="polite" style="white-space:pre-line"></div>
 
   <!-- Column Mapper -->
-  <div class="mapper-panel" id="mapperPanel">
-    <div class="mapper-title">⚙️ Cấu hình cột dữ liệu</div>
+  <div class="mapper-panel" id="mapperPanel" aria-labelledby="mapperTitle">
+    <div class="panel-heading">
+      <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span>
+      <div class="panel-copy">
+        <div class="mapper-title" id="mapperTitle">Kiểm tra các ca cần xuất</div>
+        <div class="panel-description">Bỏ chọn ca bạn không muốn đưa vào lịch cá nhân.</div>
+      </div>
+    </div>
     <div class="col-hint" id="colHint"></div>
-    <div id="colGrid" class="col-grid"></div>
-    <button class="parse-btn" onclick="parseSchedule()">✨ Phân tích lịch trực →</button>
+    <div id="sheetPicker"></div><div id="colGrid" class="col-grid"></div>
+    <button type="button" class="parse-btn" onclick="parseSchedule()">Phân tích lịch trực</button>
   </div>
 
   <!-- Stats -->
@@ -418,780 +717,693 @@ td { padding: 12px 16px; font-size: 13px; color: var(--text-dim); vertical-align
   </div>
 
   <!-- Name Selector -->
-  <div class="selector-panel" id="selectorPanel">
-    <div class="selector-label">Chọn nhân viên để xem lịch trực</div>
+  <div class="selector-panel" id="selectorPanel" aria-labelledby="selectorTitle">
+    <div class="panel-heading">
+      <span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+      <div class="panel-copy">
+        <div class="selector-label" id="selectorTitle">Lịch của ai?</div>
+        <div class="panel-description">Chọn một nhân viên để xem và tải lịch trực.</div>
+      </div>
+    </div>
     <div class="name-grid" id="nameGrid"></div>
   </div>
 
   <!-- Table -->
-  <div class="table-wrapper" id="tableWrapper">
+  <div class="table-wrapper" id="tableWrapper" aria-labelledby="tableTitle">
     <div class="table-header-bar">
-      <div class="table-title"><span class="dot"></span><span id="tableTitle">Danh sách ca trực</span></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="export-btn" id="exportBtn" onclick="exportCSV()" disabled>⬇️ Xuất CSV</button>
-        <button class="export-btn" id="exportAndOpenBtn" onclick="exportAndOpenGcal()" disabled
-          style="background:white;color:#3c4043;box-shadow:0 2px 8px rgba(0,0,0,0.25);">
-          <svg width="15" height="15" viewBox="0 0 24 24" style="flex-shrink:0">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
+      <div class="table-title"><span class="dot" aria-hidden="true"></span><span id="tableTitle">Danh sách ca trực</span></div>
+      <div class="table-actions">
+        <button type="button" class="export-btn secondary" id="exportBtn" onclick="exportCSV()" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+          Chỉ tải CSV
+        </button>
+        <button type="button" class="export-btn google-btn" id="exportAndOpenBtn" onclick="exportAndOpenGcal()" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
           Tải CSV & mở Google Calendar
         </button>
       </div>
     </div>
-    <div id="tableContainer"><div class="empty-state"><div class="empty-icon">👆</div><div>Chọn tên để xem lịch</div></div></div>
+    <div id="tableContainer"><div class="empty-state"><div class="empty-icon">—</div><div>Chọn nhân viên để xem lịch</div></div></div>
+    <div class="mobile-actions" aria-label="Tác vụ xuất lịch">
+      <button type="button" class="export-btn secondary" onclick="exportCSV()">Tải CSV</button>
+      <button type="button" class="export-btn google-btn" onclick="exportAndOpenGcal()">Mở Google Calendar</button>
+    </div>
   </div>
 
   <!-- CSV Info -->
   <div class="csv-info" id="csvInfo">
-    <div class="csv-info-title">📄 Định dạng CSV cho Google Calendar</div>
-    <div class="csv-preview" id="csvPreview"></div>
-    <div class="tip-box">
-      <span class="tip-icon">💡</span>
-      <span>Nhấn <strong>"Tải CSV & mở Google Calendar"</strong> để tải file về và mở thẳng trang import. Tại Google Calendar chọn file CSV vừa tải → chọn lịch → <strong>Nhập</strong>.</span>
-    </div>
+    <details class="csv-details">
+      <summary>Xem nội dung CSV</summary>
+      <div class="csv-content">
+        <div class="csv-info-title">Dữ liệu sẽ nhập vào Google Calendar</div>
+        <div class="csv-preview" id="csvPreview"></div>
+        <div class="tip-box">
+          <span class="tip-icon" aria-hidden="true">i</span>
+          <ol class="import-steps">
+            <li>Tải file CSV và mở trang Google Calendar.</li>
+            <li>Chọn file vừa tải, sau đó chọn lịch cần nhập.</li>
+            <li>Nhấn <strong>Nhập</strong>. Ngày trong CSV dùng MM/DD/YYYY; bảng phía trên dùng DD/MM/YYYY.</li>
+          </ol>
+        </div>
+      </div>
+    </details>
   </div>
 
-</div>
+</main>
 
 <script>
-// ══════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════
-let workbook = null;
-let rawHeaders = [];
-let rawRows = [];
-let rawColLocations = [];   // per-column location from Excel header row
-let rawDayColIdx = -1;
-let rawThuColIdx = -1;
-let scheduleData = [];
-let selectedName = null;
-let colConfig = {};
-let monthYear = { month: null, year: null };
-
-// Shift-time map for NON-nội-trú shifts: [startH, startM, endH, endM]
-// "Ra trực" không tính — chỉ dùng để nhận biết ngày thường vs ngày lễ
-const shiftTimes = {
-  'đi sớm':                     [6, 15, 7, 0],
-  'trực trưa':                  [12, 0, 13, 30],
-  'đi sớm a2':                  [6, 15, 7, 0],
-  'đi sớm a5':                  [6, 15, 7, 0],
-  'đi sớm a2 mở rộng':          [6, 15, 7, 0],
-  'đi sớm phần mềm 6h30':       [6, 30, 7, 0],
-  'default':                    [7, 0, 12, 0],
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  NỘI TRÚ TIME RULES
-//
-//  Xác định loại ngày bằng cách đọc cột "Thứ" (thu):
-//    - "Thứ 7 (Sáng)"  → t7_sang
-//    - "Thứ 7 (Tối)"   → t7_toi
-//    - "CN (Sáng)"     → cn_sang
-//    - "CN (Tối)"      → cn_toi
-//    - Ngày thường     → weekday
-//
-//  "Ngày lễ / nghỉ lễ" = ngày mà trong scheduleData không có bất kỳ ca nào
-//  mang tên "Ra trực", "Đi sớm*", "Trực trưa" (chỉ có Nội trú) → isHoliday(day)
-//
-//  Quy tắc giờ Nội trú:
-//    weekday          → 16:30 → 07:00 hôm sau
-//    t7_sang          → 12:00 → 17:00 cùng ngày
-//    t7_toi           → 17:00 → 08:00 hôm sau
-//    cn_sang          → 08:00 → 17:00 cùng ngày
-//    cn_toi           → 17:00 → 07:00 hôm sau  (→ 08:00 nếu hôm sau cũng nghỉ lễ)
-//    holiday_sang     → 08:00 → 17:00 cùng ngày
-//    holiday_toi      → 17:00 → 07:00 hôm sau  (→ 08:00 nếu hôm sau cũng nghỉ lễ)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function classifyThu(thu) {
-  const t = (thu || '').toLowerCase();
-  if (t.includes('7') && t.includes('sáng'))  return 't7_sang';
-  if (t.includes('7') && t.includes('tối'))   return 't7_toi';
-  if ((t.includes('cn') || t.includes('chủ nhật')) && t.includes('sáng')) return 'cn_sang';
-  if ((t.includes('cn') || t.includes('chủ nhật')) && t.includes('tối'))  return 'cn_toi';
-  return 'weekday';
+'use strict';
+const HM='Hoàng Mai', TTT='Tôn Thất Tùng', GCAL_URL='https://calendar.google.com/calendar/r/settings/export';
+const $=id=>document.getElementById(id);
+const norm=v=>String(v??'').normalize('NFC').replace(/\s+/gu,' ').trim();
+const fold=v=>norm(v).toLocaleLowerCase('vi'), pad2=n=>String(n).padStart(2,'0');
+let workbook=null, source=null, model=null, selectedName=null, readGeneration=0;
+function validDate(d) {
+  if(!d || ![d.year,d.month,d.day].every(Number.isInteger) || d.year<1900 || d.year>9999) return false;
+  const dt=new Date(Date.UTC(d.year,d.month-1,d.day));
+  return dt.getUTCFullYear()===d.year && dt.getUTCMonth()+1===d.month && dt.getUTCDate()===d.day;
 }
-
-// Returns true if `day/month` is a "nghỉ lễ" = no Đi sớm or Trực trưa on that day
-function isHoliday(day, month) {
-  const normalShifts = ['đi sớm', 'trực trưa'];
-  return !scheduleData.some(r =>
-    r.day === day &&
-    (month == null || (r.month || month) === month) &&
-    normalShifts.some(ns => r.shift.toLowerCase().includes(ns))
-  );
+function dateKey(d) {
+  if(!validDate(d)) throw new Error('Ngày không hợp lệ.');
+  return d.year+'-'+pad2(d.month)+'-'+pad2(d.day);
 }
-
-/**
- * Returns { startTime, endDate, endTime } for a Nội trú entry.
- * @param {object} entry  - { day, thu, month, year, ... }
- * @param {string} mon    - zero-padded month "06"
- * @param {string} yr     - year "2026"
- */
-function noiTruTimes(entry, mon, yr) {
-  const kind = classifyThu(entry.thu);
-  const pad  = pad2;
-
-  const monInt = parseInt(mon);
-  const yrInt  = parseInt(yr);
-
-  // Compute next calendar day — roll over to next month if needed
-  const daysInMonth = new Date(yrInt, monInt, 0).getDate();
-  let nextDay = entry.day + 1;
-  let nextMon = monInt;
-  let nextYr  = yrInt;
-  if (nextDay > daysInMonth) {
-    nextDay = 1;
-    nextMon = monInt + 1;
-    if (nextMon > 12) { nextMon = 1; nextYr++; }
+function compareDates(a,b) {return dateKey(a).localeCompare(dateKey(b));}
+function nextDay(d) {
+  dateKey(d);
+  const dt=new Date(Date.UTC(d.year,d.month-1,d.day+1));
+  return {year:dt.getUTCFullYear(),month:dt.getUTCMonth()+1,day:dt.getUTCDate()};
+}
+function uiDate(d) {dateKey(d);return pad2(d.day)+'/'+pad2(d.month)+'/'+d.year;}
+function csvDate(d) {dateKey(d);return pad2(d.month)+'/'+pad2(d.day)+'/'+d.year;}
+// Only blank continuation cells inherit; invalid nonblank values always return null.
+function parseDate(value,context={},previous=null,date1904=false) {
+  if(value instanceof Date) {
+    const d={year:value.getFullYear(),month:value.getMonth()+1,day:value.getDate()};
+    return validDate(d)?d:null;
   }
-
-  const dateStr     = `${pad(entry.day)}/${mon}/${yr}`;
-  const nextDateStr = `${pad(nextDay)}/${pad(nextMon)}/${nextYr}`;
-
-  // overnight end hour: 07 or 08 depending on whether next day is also holiday
-  function overnightEnd() {
-    // Look up next day entries — match by day AND month
-    const nextDayIsHoliday = !scheduleData.some(r =>
-      r.day === nextDay &&
-      (r.month || monInt) === nextMon &&
-      ['đi sớm', 'trực trưa'].some(ns => r.shift.toLowerCase().includes(ns))
-    );
-    return nextDayIsHoliday ? '08:00' : '07:00';
+  const s=norm(value);
+  if(!s) return previous?{...previous}:null;
+  if(typeof value==='number' && value>31) {
+    const serial=Math.floor(value);
+    if(!Number.isFinite(value) || (!date1904 && serial===60)) return null;
+    const dt=new Date(Date.UTC(date1904?1904:1899,date1904?0:11,date1904?1:31)
+      +(serial-(!date1904 && serial>60?1:0))*86400000);
+    const d={year:dt.getUTCFullYear(),month:dt.getUTCMonth()+1,day:dt.getUTCDate()};
+    return validDate(d)?d:null;
   }
-
-  switch (kind) {
-    case 't7_sang':
-      return { startTime: '12:00', endDate: dateStr,     endTime: '17:00' };
-    case 't7_toi':
-      return { startTime: '17:00', endDate: nextDateStr, endTime: '08:00' };
-    case 'cn_sang':
-    // holiday sáng behaves same as CN sáng
-      return { startTime: '08:00', endDate: dateStr,     endTime: '17:00' };
-    case 'cn_toi':
-      return { startTime: '17:00', endDate: nextDateStr, endTime: overnightEnd() };
-    case 'weekday':
-    default:
-      // Check if this is actually a holiday weekday (only Nội trú rows exist)
-      if (isHoliday(entry.day, entry.month || monInt)) {
-        // Holiday during weekday - treat like CN based on sáng/tối
-        const t = (entry.thu || '').toLowerCase();
-        if (t.includes('sáng')) return { startTime: '08:00', endDate: dateStr, endTime: '17:00' };
-        if (t.includes('tối'))  return { startTime: '17:00', endDate: nextDateStr, endTime: overnightEnd() };
-        // Single row holiday (no sáng/tối label) → treat as full day 08-17
-        return { startTime: '08:00', endDate: dateStr, endTime: '17:00' };
+  let d;
+  const m=s.match(/^(\d{1,2})([\/.-])(\d{1,2})(?:\2(\d{2}|\d{4}))?$/);
+  if(m) {
+    const month=Number(m[3]);
+    let year=m[4]?(+m[4]<100?2000+(+m[4]):+m[4]):(previous?.year??context.year);
+    if(!m[4] && previous && month<previous.month) year++;
+    d={year,month,day:Number(m[1])};
+  } else if(/^\d{1,2}$/.test(s)) {
+    let year=previous?.year??context.year, month=previous?.month??context.month;
+    const day=Number(s);
+    if(previous && day<previous.day) {month++;if(month===13) {month=1;year++;}}
+    d={year,month,day};
+  } else return null;
+  return validDate(d)?d:null;
+}
+function decodeAddress(address) {
+  const m=/^([A-Z]+)([1-9]\d*)$/.exec(address);
+  if(!m) return null;
+  let c=0;for(const x of m[1]) c=c*26+x.charCodeAt(0)-64;
+  return {r:Number(m[2])-1,c:c-1};
+}
+// Enumerate valued cells, never an inflated formatted !ref rectangle.
+function readSheet(ws,name,date1904=false) {
+  const rows=new Map();
+  for(const address of Object.keys(ws)) {
+    const p=decodeAddress(address),cell=ws[address];
+    if(!p || cell?.v==null || norm(cell.v)==='') continue;
+    if(!rows.has(p.r)) rows.set(p.r,new Map());
+    rows.get(p.r).set(p.c,cell.v);
+  }
+  return {rows,rowNumbers:[...rows.keys()].sort((a,b)=>a-b),merges:ws['!merges']||[],name,date1904};
+}
+function cellValue(sheet,r,c) {return sheet.rows.get(r)?.get(c)??'';}
+function locationName(v) {return [HM,TTT].find(x=>fold(x)===fold(v))||'';}
+function excludedHeader(v) {return /^(?:pk\b|phụ trách|ghi chú|chú ý|ghi nhớ)/iu.test(norm(v));}
+function resolveShiftDefinition(label) {
+  const s=fold(label);
+  if(/^ra trực(?:\s|$)/u.test(s)) return {kind:'excluded'};
+  if(s==='nội trú') return {kind:'overnight'};
+  if(s==='trực trưa') return {kind:'lunch',start:'12:00',end:'13:30'};
+  if(/^đi sớm(?:\s|$)/u.test(s)) {
+    const pm=/^đi sớm phần mềm\s*6(?:h|:)\s*30$/u.test(s);
+    const note=s.includes('phần mềm')?'PM':/a2\s*(?:mở rộng|mr)/u.test(s)?'A2MR':
+      /\ba2\b/u.test(s)?'A2':/\ba5\b/u.test(s)?'A5':'';
+    return {kind:'early',start:pm?'06:30':'06:15',end:'07:00',note};
+  }
+  return null;
+}
+function detectHeader(sheet) {
+  const candidates=[];
+  for(const r of sheet.rowNumbers.slice(0,60)) {
+    const row=sheet.rows.get(r);
+    const dayCol=[...row].find(([,v])=>/^(ngày|ngay)$/iu.test(norm(v)))?.[0];
+    const thuCol=[...row].find(([,v])=>/^(thứ|thu)$/iu.test(norm(v)))?.[0];
+    if(dayCol==null || thuCol==null || ![...row.values()].some(locationName)) continue;
+    const sr=r+1,shifts=sheet.rows.get(sr);
+    if(!shifts) continue;
+    const columns=[],merges=sheet.merges.filter(m=>m.s.r===r && locationName(cellValue(sheet,r,m.s.c)));
+    const lastCol=Math.max(...row.keys(),...shifts.keys());
+    let carry='';
+    for(let c=0;c<=lastCol;c++) {
+      const top=cellValue(sheet,r,c),label=norm(cellValue(sheet,sr,c));
+      if(norm(top)) carry=locationName(top);
+      if(excludedHeader(top)||excludedHeader(label)) {carry='';continue;}
+      let location='';
+      if(merges.length) {
+        const merge=merges.find(m=>c>=m.s.c && c<=m.e.c);
+        location=merge?locationName(cellValue(sheet,r,merge.s.c)):locationName(top);
+      } else {
+        if(!label && !norm(top)) carry='';
+        location=carry;
       }
-      return { startTime: '16:30', endDate: nextDateStr, endTime: '07:00' };
+      if(location && label) columns.push({index:c,label,location,definition:resolveShiftDefinition(label)});
+    }
+    const recognized=columns.filter(c=>c.definition && c.definition.kind!=='excluded').length;
+    if(recognized) candidates.push({locationRow:r,shiftRow:sr,dayCol,thuCol,columns,
+      lastCol:Math.max(...columns.map(c=>c.index)),score:recognized});
+  }
+  return candidates.sort((a,b)=>b.score-a.score)[0]||null;
+}
+function detectMonthYear(sheet,header) {
+  const matches=[];
+  for(const r of sheet.rowNumbers.filter(r=>r<header.locationRow)) for(const [c,v] of sheet.rows.get(r)) {
+    if(c>header.lastCol) continue;
+    const text=norm(v);
+    if(/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}$/.test(text)) continue;
+    const m=text.match(/(?:tháng\s*|(?:^|\s)T)?(\d{1,2})\s*[\/.,-]\s*(\d{4})(?!\d)/i);
+    if(m && +m[1]>=1 && +m[1]<=12) matches.push({month:+m[1],year:+m[2]});
+  }
+  if(new Set(matches.map(x=>x.year+'-'+x.month)).size>1) throw new Error('Tiêu đề có nhiều tháng/năm mâu thuẫn.');
+  if(matches.length) return matches[0];
+  const m=sheet.name.match(/(?:tháng\s*|T)?(\d{1,2})\s*[\/.,-]\s*(\d{4})(?!\d)/i);
+  if(m && +m[1]>=1 && +m[1]<=12) return {month:+m[1],year:+m[2]};
+  for(const r of sheet.rowNumbers.filter(r=>r>header.shiftRow)) {
+    const v=cellValue(sheet,r,header.dayCol);
+    if(v instanceof Date || (typeof v==='number' && v>31) ||
+      /^\d{1,2}([\/.-])\d{1,2}\1(?:\d{2}|\d{4})$/.test(norm(v))) {
+      const d=parseDate(v,{},null,sheet.date1904);
+      if(d) return {month:d.month,year:d.year};
+    }
+  }
+  throw new Error('Không xác định được tháng/năm từ tiêu đề, tên sheet hoặc ngày đầy đủ. Hãy bổ sung tháng/năm trong Excel.');
+}
+function detectSchedule(wb) {
+  const candidates=[],errors=[];
+  for(const name of wb.SheetNames) {
+    const sheet=readSheet(wb.Sheets[name],name,!!wb.Workbook?.WBProps?.date1904),header=detectHeader(sheet);
+    if(!header) continue;
+    try {
+      const result=buildRawSource(sheet,header,detectMonthYear(sheet,header));
+      if(result.records.length) candidates.push({...result,score:header.score*10+Math.min(result.facts.size,62)});
+    } catch(e) {errors.push(name+': '+e.message);}
+  }
+  candidates.sort((a,b)=>b.score-a.score);
+  if(!candidates.length) throw new Error(errors.join('\n')||'Không tìm thấy sheet lịch có Ngày, Thứ và hai tầng tiêu đề địa điểm/ca trực.');
+  return {best:candidates[0],candidates};
+}
+function phaseOf(text) {
+  const t=fold(text);
+  return /sáng/u.test(t)?'morning':/(?:tối|chiều|đêm)/u.test(t)?'night':'';
+}
+function explicitOff(text) {return /(?:nghỉ\s+(?:lễ|bù|tết|cuối tuần)|ngày\s+lễ|ngày\s+nghỉ|holiday|^lễ(?:\s|$)|^off$)/iu.test(norm(text));}
+function isDayLabel(text) {return /^(?:thứ\s*(?:[2-7]|hai|ba|tư|năm|sáu|bảy)|cn\b|chủ nhật|ngày lễ|nghỉ|lễ|sáng|tối|chiều)/iu.test(norm(text));}
+function buildRawSource(sheet,header,period) {
+  const records=[],warnings=[],facts=new Map();
+  let previous=null,continuation=null,started=false;
+  const dayMerges=new Map(), offCells=new Map();
+  // Propagate only affirmative off-day text inside merged schedule cells, never staff names.
+  for(const m of sheet.merges) {
+    const value=cellValue(sheet,m.s.r,m.s.c);
+    if(m.s.r<=header.shiftRow || !explicitOff(value)) continue;
+    for(const r of sheet.rowNumbers) {
+      if(r<m.s.r || r>m.e.r) continue;
+      for(const c of header.columns) if(c.index>=m.s.c && c.index<=m.e.c) offCells.set(r+':'+c.index,value);
+    }
+  }
+  for(const m of sheet.merges) {
+    if(m.s.c===header.dayCol && m.e.c===header.dayCol && m.e.r-m.s.r<100)
+      for(let r=m.s.r+1;r<=m.e.r;r++) dayMerges.set(r,m.s.r);
+  }
+  for(const r of sheet.rowNumbers.filter(r=>r>header.shiftRow)) {
+    const raw=cellValue(sheet,r,header.dayCol),thu=norm(cellValue(sheet,r,header.thuCol));
+    const hasSchedule=header.columns.some(c=>norm(cellValue(sheet,r,c.index)));
+    if(!norm(raw)&&!thu&&!hasSchedule) {continuation=null;continue;}
+    if(norm(raw)&&/^(?:ghi chú|chú ý|tổng|người lập|trưởng|ký|phê duyệt)/iu.test(norm(raw))) break;
+    if(norm(raw)&&!isDayLabel(thu)&&!hasSchedule) {if(started) break;continue;}
+    let date;
+    if(!norm(raw)) {
+      const allowed=(continuation && dayMerges.get(r)===continuation.anchor) ||
+        (continuation && r===continuation.row+1 && phaseOf(continuation.thu)==='morning' && phaseOf(thu)==='night' && isDayLabel(thu));
+      date=allowed?parseDate('',period,continuation?.date):null;
+    } else date=parseDate(raw,period,previous,sheet.date1904);
+    if(!date) {
+      if(norm(raw)) warnings.push('Bỏ dòng '+(r+1)+': ngày không hợp lệ ('+norm(raw)+').');
+      continuation=null;continue;
+    }
+    if(!isDayLabel(thu)) {warnings.push('Bỏ dòng '+(r+1)+': thiếu hoặc không nhận diện được Thứ/ca Sáng–Tối.');continuation=null;continue;}
+    started=true;previous=date;continuation={date,row:r,thu,anchor:dayMerges.get(r)??r};
+    records.push({date,thu,row:r,values:sheet.rows.get(r)});
+    const key=dateKey(date),weekday=new Date(Date.UTC(date.year,date.month-1,date.day)).getUTCDay();
+    if(!facts.has(key)) facts.set(key,{date,saturday:weekday===6,sunday:weekday===0,holiday:false,normalRaw:false,phases:new Set(),inpatientRaw:false});
+    const f=facts.get(key);
+    f.saturday ||= /thứ\s*(?:7|bảy)/iu.test(thu);
+    f.sunday ||= /(?:^cn\b|chủ nhật)/iu.test(thu);
+    f.holiday ||= explicitOff(thu);
+    f.phases.add(phaseOf(thu));
+    for(const c of header.columns) {
+      const v=cellValue(sheet,r,c.index)||offCells.get(r+':'+c.index)||'';
+      if(c.definition?.kind==='overnight' && norm(v)) f.inpatientRaw=true;
+      if(['early','lunch','excluded'].includes(c.definition?.kind) && norm(v)) {
+        if(!explicitOff(v)) f.normalRaw=true; // NB still proves a daytime column is scheduled.
+        else if(!/nghỉ cuối tuần/iu.test(norm(v)) || (!f.saturday&&!f.sunday)) f.holiday=true;
+      }
+    }
+  }
+  // Paired inpatient morning/night rows without raw daytime assignments are affirmative off-day structure.
+  // A lone empty weekday or personal leave never establishes a holiday.
+  for(const f of facts.values()) {
+    if(!f.saturday && !f.sunday && f.inpatientRaw && f.phases.has('morning') && f.phases.has('night') && !f.normalRaw) f.holiday=true;
+  }
+  return {sheet,header,period,records,facts,warnings};
+}
+function parseStaff(value) {
+  if(typeof value!=='string') return [];
+  const result=new Map();
+  for(const part of value.normalize('NFC').split(/[,;\r\n]+/u)) {
+    const name=norm(part),key=fold(name);
+    if(!name || /^(?:nb|np|nl|nts|nnn|off|ngh|nghi|nghỉ)(?:$|[\s/():-])/iu.test(key)) continue;
+    if(/^(?:ngày|thứ|cn|sáng|tối|chiều|nội trú|ra trực|đi sớm|trực trưa|phụ trách|ghi chú|trống|chưa phân công|tổng|x|n\/a|true|false)(?:$|\s)/iu.test(key)) continue;
+    if(!/^[\p{L}\p{M}]+(?:[ '’.-][\p{L}\p{M}]+)*$/u.test(name)) continue;
+    if(!result.has(key)) result.set(key,name);
+  }
+  return [...result.values()];
+}
+function buildSchedule(raw,checked) {
+  const selected=new Set(checked),entries=[],earlyIndex=new Map(),names=new Map(),seen=new Set();
+  for(const c of raw.header.columns)
+    if(selected.has(c.index)&&!c.definition) throw new Error('Chưa biết giờ của ca "'+c.label+'". Bỏ chọn cột này hoặc sửa tiêu đề Excel.');
+  for(const row of raw.records) for(const c of raw.header.columns) {
+    const def=c.definition;
+    if(!def||def.kind==='excluded') continue;
+    for(const candidate of parseStaff(row.values.get(c.index))) {
+      const key=fold(candidate);
+      if(!names.has(key)) names.set(key,candidate);
+      const name=names.get(key);
+      // Colleague notes use raw early assignments, independent of export checkboxes.
+      if(def.kind==='early'&&c.location===TTT&&def.note) {
+        const dk=dateKey(row.date);
+        if(!earlyIndex.has(dk)) earlyIndex.set(dk,new Map());
+        const group=earlyIndex.get(dk);
+        if(!group.has(def.note)) group.set(def.note,new Map());
+        group.get(def.note).set(key,name);
+      }
+      if(!selected.has(c.index)) continue;
+      const id=JSON.stringify([dateKey(row.date),row.thu,c.location,fold(c.label),key]);
+      if(seen.has(id)) continue;
+      seen.add(id);entries.push({date:row.date,thu:row.thu,location:c.location,shift:c.label,name});
+    }
+  }
+  const result={entries,facts:raw.facts,earlyIndex,eventsByName:new Map(),events:[]};
+  for(const entry of entries) {
+    const event=buildCalendarEvent(entry,result);
+    result.events.push(event);
+    const key=fold(event.name);
+    if(!result.eventsByName.has(key)) result.eventsByName.set(key,[]);
+    result.eventsByName.get(key).push(event);
+  }
+  result.events.sort(compareEvents);
+  for(const events of result.eventsByName.values()) events.sort(compareEvents);
+  return result;
+}
+function getTTTEarlyNote(date,index) {
+  const group=index.get(dateKey(date));
+  if(!group) return '';
+  const parts=['A2','A5','A2MR','PM'].filter(k=>group.has(k)).map(k=>k+': '+[...group.get(k).values()].join(', '));
+  return parts.length?' ('+parts.join(', ')+')':'';
+}
+function noiTruTimes(entry,facts) {
+  const date=entry.date,following=nextDay(date),fact=facts.get(dateKey(date));
+  if(!fact) throw new Error('Thiếu dữ liệu ngày '+uiDate(date)+'.');
+  if(!fact.saturday&&!fact.sunday&&!fact.holiday) return {startTime:'16:30',endTime:'07:00',endDate:following};
+  const phase=phaseOf(entry.thu);
+  if(!phase) throw new Error('Ngày nghỉ '+uiDate(date)+' thiếu nhãn Sáng/Tối; không thể xác định giờ Nội trú.');
+  if(phase==='morning') return {startTime:fact.holiday||fact.sunday?'08:00':'12:00',endTime:'17:00',endDate:date};
+  const next=facts.get(dateKey(following));
+  return {startTime:'17:00',endTime:(!fact.holiday&&fact.saturday)||(next&&(next.sunday||next.holiday))?'08:00':'07:00',endDate:following};
+}
+function buildCalendarEvent(entry,context) {
+  if(![HM,TTT].includes(entry.location)) throw new Error('Địa điểm không hợp lệ.');
+  const def=resolveShiftDefinition(entry.shift);
+  if(!def||def.kind==='excluded') throw new Error('Ca không được xuất: '+entry.shift);
+  const timing=def.kind==='overnight'?noiTruTimes(entry,context.facts):{startTime:def.start,endTime:def.end,endDate:entry.date};
+  const note=def.kind==='overnight'&&entry.location===TTT&&compareDates(entry.date,timing.endDate)!==0?
+    getTTTEarlyNote(timing.endDate,context.earlyIndex):'';
+  return Object.freeze({name:entry.name,thu:entry.thu,shift:entry.shift,location:entry.location,
+    startDate:Object.freeze({...entry.date}),endDate:Object.freeze({...timing.endDate}),
+    startTime:timing.startTime,endTime:timing.endTime,subject:entry.shift+' - '+entry.location+note,
+    description:entry.name+' - '+entry.shift+' tại '+entry.location+' ('+entry.thu+')'});
+}
+function compareEvents(a,b) {
+  return compareDates(a.startDate,b.startDate)||a.startTime.localeCompare(b.startTime)||
+    a.location.localeCompare(b.location,'vi')||a.subject.localeCompare(b.subject,'vi');
+}
+function buildCalendarEventsForName(name,context=model) {return context?.eventsByName.get(fold(name))||[];}
+const CSV_HEADERS=['Subject','Start Date','Start Time','End Date','End Time','All Day Event','Description','Location'];
+function csvField(value) {
+  let s=String(value??'');
+  if(/^\s*[=+\-@]/u.test(s)||/^\s*[\t\r]/u.test(s)) s="'"+s;
+  s=s.replace(/\r\n|\r|\n/g,'\r\n');
+  return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function eventCSVRow(e) {return [e.subject,csvDate(e.startDate),e.startTime,csvDate(e.endDate),e.endTime,'FALSE',e.description,e.location];}
+function serializeCSV(events) {
+  return '\uFEFF'+[CSV_HEADERS,...events.map(eventCSVRow)].map(row=>row.map(csvField).join(',')).join('\r\n')+'\r\n';
+}
+function safeFilename(name) {
+  const safe=norm(name).replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'_').replace(/[. ]+$/g,'').slice(0,100);
+  return 'lich_truc_'+(safe||'nhan_vien')+'.csv';
+}
+function element(tag,text,className='') {
+  const node=document.createElement(tag);
+  if(text!=null) node.textContent=String(text);
+  if(className) node.className=className;
+  return node;
+}
+function showAlert(type,message) {$('alertBox').className='alert alert-'+type+' visible';$('alertBox').textContent=message;}
+function clearAlert() {$('alertBox').className='alert';$('alertBox').textContent='';}
+function setStep(n) {
+  for(let i=1;i<=4;i++) {
+    const step=$('step'+i),circle=step.querySelector('.step-circle');
+    step.className='step'+(i<n?' done':i===n?' active':'');
+    circle.textContent=i<n?'✓':String(i);
+    if(i===n) step.setAttribute('aria-current','step'); else step.removeAttribute('aria-current');
   }
 }
-
-// ══════════════════════════════════════════
-//  DRAG & DROP
-// ══════════════════════════════════════════
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) processFile(file);
-});
-
-function handleFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
-
-// ══════════════════════════════════════════
-//  FILE PROCESSING
-// ══════════════════════════════════════════
+function clearResults() {
+  model=null;selectedName=null;
+  for(const id of ['statsBar','selectorPanel','tableWrapper','csvInfo']) $(id).classList.remove('visible');
+  for(const id of ['nameGrid','tableContainer','csvPreview']) $(id).replaceChildren();
+  $('exportBtn').disabled=true;$('exportAndOpenBtn').disabled=true;
+}
+function resetAll() {
+  readGeneration++;workbook=null;source=null;clearResults();clearAlert();
+  $('dropZone').style.display='';$('fileInput').value='';
+  $('fileLoaded').classList.remove('visible');$('mapperPanel').classList.remove('visible');
+  $('colGrid').replaceChildren();$('sheetPicker').replaceChildren();setStep(1);
+}
+function handleFileSelect(e) {if(e.target.files[0]) processFile(e.target.files[0]);}
 function processFile(file) {
-  clearAlert();
-  const validExt = /\.(xlsx|xls)$/i.test(file.name);
-  if (!validExt) { showAlert('error', '⚠️ Vui lòng chọn file Excel (.xlsx hoặc .xls)'); return; }
-
-  const reader = new FileReader();
-  reader.onload = e => {
+  resetAll();
+  if(!/\.(xlsx|xls)$/i.test(file.name)) return showAlert('error','Vui lòng chọn file .xlsx hoặc .xls.');
+  if(typeof XLSX==='undefined') return showAlert('error','Không tải được thư viện đọc Excel. Bản này còn phụ thuộc mạng; hãy kiểm tra kết nối.');
+  const generation=readGeneration,reader=new FileReader();
+  reader.onerror=()=>{if(generation===readGeneration) showAlert('error','Không đọc được file. Hãy kiểm tra quyền truy cập hoặc chọn lại file Excel.');};
+  reader.onabort=()=>{if(generation===readGeneration) showAlert('error','Đã hủy đọc file Excel.');};
+  reader.onload=e=>{
+    if(generation!==readGeneration) return;
     try {
-      workbook = XLSX.read(e.target.result, { type: 'array', cellDates: true });
-      document.getElementById('fileName').textContent = file.name;
-      document.getElementById('fileMeta').textContent =
-        `${workbook.SheetNames.length} sheet: ${workbook.SheetNames.join(', ')} · ${(file.size/1024).toFixed(1)} KB`;
-      document.getElementById('fileLoaded').classList.add('visible');
-      dropZone.style.display = 'none';
-
-      setStep(2);
-      autoDetectAndShowMapper();
-    } catch(err) {
-      showAlert('error', '❌ Không đọc được file Excel. Kiểm tra lại định dạng file.');
-    }
+      workbook=XLSX.read(e.target.result,{type:'array',cellDates:true,cellStyles:false});
+      const detected=detectSchedule(workbook);source=detected.best;
+      $('fileName').textContent=file.name;
+      $('fileMeta').textContent=workbook.SheetNames.length+' sheet · '+(file.size/1024).toFixed(1)+' KB';
+      $('fileLoaded').classList.add('visible');$('dropZone').style.display='none';
+      const picker=$('sheetPicker');picker.replaceChildren();
+      const label=element('label','Sheet lịch: '),select=element('select',null,'col-select');
+      detected.candidates.forEach((s,i)=>{const opt=element('option',s.sheet.name);opt.value=String(i);select.append(opt);});
+      select.onchange=()=>{source=detected.candidates[Number(select.value)];clearResults();buildMapper();};
+      label.append(select);picker.append(label);buildMapper();setStep(2);
+    } catch(err) {showAlert('error','Không phân tích được Excel: '+err.message);}
   };
   reader.readAsArrayBuffer(file);
 }
-
-// ══════════════════════════════════════════
-//  AUTO-DETECT SHEET & COLUMNS
-// ══════════════════════════════════════════
-function autoDetectAndShowMapper() {
-  // Pick best sheet (prefer sheet with "lịch" or "trực" in name)
-  let sheetName = workbook.SheetNames[0];
-  for (const s of workbook.SheetNames) {
-    const sl = s.toLowerCase();
-    if (sl.includes('lịch') || sl.includes('trực')) { sheetName = s; break; }
+function buildMapper() {
+  const grid=$('colGrid');grid.replaceChildren();
+  $('colHint').textContent='Tháng '+source.period.month+'/'+source.period.year+' · '+source.sheet.name+
+    ' · Tiêu đề dòng '+(source.header.locationRow+1)+'–'+(source.header.shiftRow+1)+'. Ra trực và cột ghi chú không xuất.';
+  for(const c of source.header.columns) {
+    if(c.definition?.kind==='excluded') continue;
+    const label=element('label',null,'col-row'),input=element('input');
+    input.type='checkbox';input.id='shift-'+c.index;input.checked=!!c.definition;
+    input.onchange=()=>{clearResults();setStep(2);};
+    label.append(input,element('span',c.label+(c.definition?'':' — chưa biết giờ'),'col-label'),
+      element('span',c.location,'location-badge '+(c.location===HM?'loc-hm':'loc-ttt')));
+    grid.append(label);
   }
-
-  const ws = workbook.Sheets[sheetName];
-  const allData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
-  // Try to detect month/year from first row
-  const title = String(allData[0]?.[0] || '');
-  const m = title.match(/(\d{2})[\/\.\-](\d{4})/);
-  if (m) { monthYear.month = parseInt(m[1]); monthYear.year = parseInt(m[2]); }
-
-  // Find the location row (contains "Hoàng Mai" or "Tôn Thất Tùng") and shift row below it
-  let locRowIdx = -1;
-  let shiftRowIdx = -1;
-
-  for (let i = 0; i < Math.min(allData.length, 10); i++) {
-    const rowStr = allData[i].map(c => String(c));
-    const hasLoc = rowStr.some(c => c.includes('Hoàng Mai') || c.includes('Tôn Thất Tùng'));
-    const hasDay = rowStr.some(c => c.toLowerCase().includes('ngày') || c.toLowerCase() === 'ngay');
-    if (hasLoc || hasDay) {
-      locRowIdx = i;
-      if (i + 1 < allData.length) shiftRowIdx = i + 1;
-      break;
-    }
-  }
-
-  if (locRowIdx < 0) {
-    showAlert('error', '❌ Không tìm thấy hàng tiêu đề. Kiểm tra lại file Excel.');
-    return;
-  }
-
-  const locRow   = allData[locRowIdx];   // row with "Ngày", "Thứ", "Hoàng Mai", "Tôn Thất Tùng"...
-  const shiftRow = shiftRowIdx >= 0 ? allData[shiftRowIdx] : [];  // row with "Nội trú", "Đi sớm"...
-
-  // Forward-fill location from locRow (handles merged cells that appear as empty)
-  const colLocation = [];   // per-column location string (e.g. "Hoàng Mai")
-  const colShift    = [];   // per-column shift name (e.g. "Nội trú")
-  let lastLoc = '';
-
-  for (let ci = 0; ci < Math.max(locRow.length, shiftRow.length); ci++) {
-    const locVal   = String(locRow[ci]   || '').trim();
-    const shiftVal = String(shiftRow[ci] || '').trim();
-
-    // Detect if this cell is a location header
-    if (locVal.includes('Hoàng Mai') || locVal.toLowerCase().includes('hoàng mai')) lastLoc = 'Hoàng Mai';
-    else if (locVal.includes('Tôn Thất Tùng') || locVal.toLowerCase().includes('tôn thất tùng')) lastLoc = 'Tôn Thất Tùng';
-
-    // Cột ghi chú / phụ trách → không gán location (dùng chuỗi rỗng để đánh dấu bỏ qua)
-    const shiftLow = shiftVal.toLowerCase();
-    const locLow   = locVal.toLowerCase();
-    const isMeta   = locLow.includes('pk ') || locLow.startsWith('pk') ||
-                     locLow.includes('phụ trách') || shiftLow.includes('phụ trách') ||
-                     locLow.includes('ghi chú') || shiftLow.includes('ghi chú');
-    colLocation.push(isMeta ? '' : lastLoc);
-    colShift.push(shiftVal || locVal);
-  }
-
-  // Build column metadata
-  rawHeaders = colShift;
-  rawColLocations = colLocation;  // stored globally for parseSchedule
-
-  // Data rows start after shiftRow
-  const dataStartIdx = (shiftRowIdx >= 0 ? shiftRowIdx : locRowIdx) + 1;
-  rawRows = allData.slice(dataStartIdx).filter(r => r.some(c => String(c).trim()));
-
-  buildMapper(sheetName, colShift, colLocation, locRow);
+  $('mapperPanel').classList.add('visible');
+  const unknown=source.header.columns.filter(c=>!c.definition);
+  showAlert('info',[...source.warnings,...unknown.map(c=>'Chưa biết giờ ca: '+c.label+' (chưa chọn).')].join('\n')||'Đã nhận diện lịch. Chọn các cột cần xuất rồi phân tích.');
 }
-
-function buildMapper(sheetName, colShift, colLocation, locRow) {
-  const panel = document.getElementById('mapperPanel');
-  const grid  = document.getElementById('colGrid');
-  const hint  = document.getElementById('colHint');
-  panel.classList.add('visible');
-
-  // Find day/thu columns from locRow
-  let guessDay = -1, guessThu = -1;
-  locRow.forEach((v, i) => {
-    const s = String(v).toLowerCase();
-    if (s.includes('ngày') || s === 'ngay') guessDay = i;
-    if (s.includes('thứ') || s === 'thu')   guessThu = i;
-  });
-
-  // Fallback: check colShift too
-  if (guessDay < 0) guessDay = colShift.findIndex(h => String(h).toLowerCase().includes('ngày'));
-  if (guessThu < 0) guessThu = colShift.findIndex(h => String(h).toLowerCase().includes('thứ'));
-
-  rawDayColIdx = guessDay;
-  rawThuColIdx = guessThu;
-
-  // Determine which shift cols are valid (have a shift name + a location)
-  const shiftColGuesses = colShift.map((h, i) => {
-    if (i === guessDay || i === guessThu) return null;
-    if (!h.trim()) return null;
-    const hl = h.toLowerCase();
-    if (hl.includes('ra trực')) return null;   // skip ra trực
-    if (!colLocation[i]) return null;           // no location → skip
-    if (hl.includes('nội') || hl.includes('đi sớm') ||
-        hl.includes('trực trưa') || hl.includes('phần mềm') || hl.includes('sớm')) return i;
-    return null;
-  }).filter(i => i !== null);
-
-  hint.innerHTML = `Sheet: <strong style="color:var(--accent2)">${sheetName}</strong> &nbsp;·&nbsp;
-    <strong style="color:var(--accent2)">${rawRows.length}</strong> dòng dữ liệu &nbsp;·&nbsp;
-    Địa điểm đọc từ hàng tiêu đề Excel
-    <br><span style="color:var(--text-muted);font-size:11px">Bỏ tích các cột không cần đưa vào Google Calendar.</span>`;
-
-  const colOpts = colShift.map((h, i) => `<option value="${i}">${i}: ${h || '(trống)'}</option>`).join('');
-  const noneOpt = '<option value="-1">— Không dùng —</option>';
-
-  let html = `
-    <div class="col-row">
-      <label class="col-label">🗓 Cột NGÀY</label>
-      <select class="col-select" id="colDay">${noneOpt}${colOpts}</select>
-    </div>
-    <div class="col-row">
-      <label class="col-label">📅 Cột THỨ</label>
-      <select class="col-select" id="colThu">${noneOpt}${colOpts}</select>
-    </div>`;
-
-  html += `<div style="grid-column:1/-1;margin-top:8px;">
-    <div class="col-label" style="margin-bottom:12px;">📋 CÁC CỘT CA TRỰC
-      <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">
-        — địa điểm được đọc tự động từ file Excel
-      </span>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;" id="shiftColChecks">`;
-
-  colShift.forEach((h, i) => {
-    if (i === guessDay || i === guessThu || !h.trim()) return;
-    const hl = h.toLowerCase();
-    // Bỏ các cột ghi chú / phụ trách
-    if (hl.includes('pk ') || hl.includes('phụ trách') || hl.includes('phụ trach') ||
-        hl.startsWith('pk') || hl.includes('ghi chú') || hl.includes('note')) return;
-    const isRaTruc = hl.includes('ra trực');
-    const loc = colLocation[i] || '';
-    if (!loc && !isRaTruc) return;  // skip columns with no location detected
-
-    const isChecked = (!isRaTruc && shiftColGuesses.includes(i)) ? 'checked' : '';
-    const dimStyle  = isRaTruc ? 'opacity:0.4;' : '';
-    const raTag     = isRaTruc ? `<span style="font-size:10px;color:var(--text-muted)">(bỏ qua)</span>` : '';
-
-    const locColor  = loc.includes('Hoàng') ? 'var(--hm)' : 'var(--ttt)';
-    const locBadge  = loc
-      ? `<span style="font-size:10px;font-weight:700;color:${locColor};background:rgba(255,255,255,0.05);padding:2px 7px;border-radius:5px;flex-shrink:0">${loc}</span>`
-      : '';
-
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;${dimStyle}">
-      <input type="checkbox" value="${i}" ${isChecked} id="chk_col_${i}" style="accent-color:var(--accent);flex-shrink:0;width:14px;height:14px">
-      <label for="chk_col_${i}" style="flex:1;font-size:12px;color:var(--text-dim);cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h}">${h}${raTag}</label>
-      ${locBadge}
-    </div>`;
-  });
-
-  html += '</div></div>';
-  grid.innerHTML = html;
-
-  if (guessDay >= 0) document.getElementById('colDay').value = guessDay;
-  if (guessThu >= 0) document.getElementById('colThu').value = guessThu;
-}
-
-
-// ══════════════════════════════════════════
-//  PARSE SCHEDULE
-// ══════════════════════════════════════════
-// Values that mean leave/absence — not a staff name
-const LEAVE_ABBREVS = new Set(['nb', 'np', 'nl', 'nts', 'nnn', 'off', 'ngh', 'nghi', 'nghỉ']);
-
 function parseSchedule() {
-  clearAlert();
-  const dayColIdx = parseInt(document.getElementById('colDay').value);
-  const thuColIdx = parseInt(document.getElementById('colThu').value);
-
-  if (dayColIdx < 0) { showAlert('error', '⚠️ Vui lòng chọn cột NGÀY'); return; }
-
-  // Get checked shift columns
-  const shiftChecks = document.querySelectorAll('#shiftColChecks input[type=checkbox]:checked');
-  if (shiftChecks.length === 0) { showAlert('error', '⚠️ Vui lòng chọn ít nhất 1 cột ca trực'); return; }
-
-  const shiftCols = Array.from(shiftChecks).map(cb => {
-    const colIdx = parseInt(cb.value);
-    return {
-      idx: colIdx,
-      label: rawHeaders[colIdx] || `Cột ${colIdx}`,
-      location: rawColLocations[colIdx] || 'Không xác định',
-    };
-  });
-
-  // Parse rows
-  scheduleData = [];
-  let currentDay = null;
-  let currentThu = '';
-  let currentMonth = monthYear.month || null;
-  let currentYear  = monthYear.year  || null;
-
-  rawRows.forEach(row => {
-    const rawDay = String(row[dayColIdx] || '').trim();
-    const rawThu = thuColIdx >= 0 ? String(row[thuColIdx] || '').trim() : '';
-
-    // Parse day — handle "1/6", "01/9", "1", "01"
-    let day = null, rowMonth = currentMonth, rowYear = currentYear;
-    if (rawDay) {
-      if (rawDay.includes('/')) {
-        const parts = rawDay.split('/');
-        day = parseInt(parts[0]);
-        if (parts[1]) rowMonth = parseInt(parts[1]);
-        if (parts[2]) rowYear  = parseInt(parts[2]);
-        // First occurrence sets base month/year
-        if (!monthYear.month && rowMonth) monthYear.month = rowMonth;
-        if (!monthYear.year  && rowYear)  monthYear.year  = rowYear;
-      } else {
-        const parsed = parseInt(rawDay);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) day = parsed;
-      }
-    }
-
-    if (day) {
-      currentDay   = day;
-      currentMonth = rowMonth || currentMonth;
-      currentYear  = rowYear  || currentYear;
-      currentThu   = rawThu || currentThu;
-    } else if (!currentDay) return;
-
-    if (!currentDay) return;
-
-    shiftCols.forEach(sc => {
-      const val = String(row[sc.idx] || '').trim();
-      if (!val || val.toLowerCase() === 'nan') return;
-
-      // Split multiple names (comma or space)
-      const names = val.split(/,/).map(n => n.trim()).filter(n => {
-        if (!n || n.length === 0 || n.length >= 20) return false;
-        // Skip known leave/absence abbreviations (case-insensitive)
-        if (LEAVE_ABBREVS.has(n.toLowerCase())) return false;
-        // Skip values that are purely numeric
-        if (/^\d+$/.test(n)) return false;
-        return true;
-      });
-
-      names.forEach(name => {
-        if (name) {
-          scheduleData.push({
-            day: currentDay,
-            month: currentMonth,
-            year: currentYear,
-            thu: rawThu || currentThu,
-            location: sc.location,
-            shift: sc.label,
-            name: cleanName(name),
-          });
-        }
-      });
-    });
-  });
-
-  if (scheduleData.length === 0) {
-    showAlert('error', '❌ Không trích xuất được dữ liệu. Kiểm tra lại cấu hình cột hoặc cấu trúc file Excel.');
-    return;
-  }
-
-  showAlert('info', `✅ Đã phân tích xong! Tìm thấy <strong>${scheduleData.length}</strong> ca trực từ ${[...new Set(scheduleData.map(r=>r.name))].length} nhân viên.`);
-  renderNameSelector();
-  setStep(3);
+  clearResults();
+  try {
+    const checked=source.header.columns.filter(c=>$('shift-'+c.index)?.checked).map(c=>c.index);
+    model=buildSchedule(source,checked);
+    if(!model.events.length) throw new Error('Không có ca hợp lệ trong các cột đã chọn.');
+    renderNameSelector();setStep(3);
+    showAlert('info','Đã phân tích '+model.events.length+' ca, '+model.eventsByName.size+' nhân viên.'+
+      (source.warnings.length?'\n'+source.warnings.join('\n'):''));
+  } catch(err) {clearResults();showAlert('error',err.message);}
 }
-
-function cleanName(s) {
-  return s.replace(/\s+/g, ' ').trim();
-}
-
-
-// ══════════════════════════════════════════
-//  NAME SELECTOR + TABLE
-// ══════════════════════════════════════════
 function renderNameSelector() {
-  const nameCount = {};
-  scheduleData.forEach(r => { nameCount[r.name] = (nameCount[r.name]||0)+1; });
-  const allNames = Object.keys(nameCount).sort((a,b) => a.localeCompare(b,'vi'));
-
-  document.getElementById('statPersons').textContent = allNames.length;
-  document.getElementById('statEntries').textContent = scheduleData.length;
-  document.getElementById('statDays').textContent = new Set(scheduleData.map(r=>r.day)).size;
-  document.getElementById('statSheet').textContent = monthYear.month ? `T${String(monthYear.month).padStart(2,'0')}` : '—';
-
-  document.getElementById('statsBar').classList.add('visible');
-
-  const grid = document.getElementById('nameGrid');
-  grid.innerHTML = '';
-  allNames.forEach(name => {
-    const btn = document.createElement('button');
-    btn.className = 'name-btn';
-    btn.innerHTML = `${name}<span class="count-badge">${nameCount[name]}</span>`;
-    btn.onclick = () => {
-      document.querySelectorAll('.name-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedName = name;
-      renderTable(name);
-      setStep(4);
+  $('statPersons').textContent=model.eventsByName.size;$('statEntries').textContent=model.events.length;
+  $('statDays').textContent=new Set(model.events.map(e=>dateKey(e.startDate))).size;
+  $('statSheet').textContent='T'+source.period.month+'/'+source.period.year;
+  const grid=$('nameGrid');grid.replaceChildren();
+  const groups=[...model.eventsByName.values()].sort((a,b)=>a[0].name.localeCompare(b[0].name,'vi'));
+  for(const events of groups) {
+    const name=events[0].name,button=element('button',name,'name-btn');
+    button.type='button';button.setAttribute('aria-pressed','false');
+    button.append(element('span',events.length,'count-badge'));
+    button.onclick=()=>{
+      for(const b of grid.children) {b.classList.remove('active');b.setAttribute('aria-pressed','false');}
+      button.classList.add('active');button.setAttribute('aria-pressed','true');
+      selectedName=name;renderTable(name);setStep(4);
+      $('tableWrapper').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
     };
-    grid.appendChild(btn);
-  });
-
-  document.getElementById('selectorPanel').classList.add('visible');
+    grid.append(button);
+  }
+  $('statsBar').classList.add('visible');$('selectorPanel').classList.add('visible');
 }
-
-function pad2(n) { return String(n).padStart(2,'0'); }
-
+function renderEventTable(container,events) {
+  const labels=['Ngày','Thứ','Địa điểm','Ca trực / ghi chú','Bắt đầu','Kết thúc'];
+  const table=element('table'),head=element('thead'),hr=element('tr'),body=element('tbody');
+  table.setAttribute('aria-label','Danh sách ca trực');
+  for(const text of labels) hr.append(element('th',text));
+  head.append(hr);
+  for(const e of events) {
+    const row=element('tr'),values=[uiDate(e.startDate),e.thu,e.location,e.subject,e.startTime,uiDate(e.endDate)+' '+e.endTime];
+    values.forEach((v,i)=>{
+      const cell=element('td',null,i===0?'td-date':i===1?'td-thu':'');
+      cell.dataset.label=labels[i];
+      if(i===2) cell.append(element('span',v,'location-badge '+(v===HM?'loc-hm':'loc-ttt')));
+      else cell.textContent=v;
+      row.append(cell);
+    });
+    body.append(row);
+  }
+  table.append(head,body);container.replaceChildren(table);
+}
 function renderTable(name) {
-  const rows = scheduleData.filter(r => r.name === name);
-  // Sort by month → day → location
-  rows.sort((a,b) => {
-    const am = a.month || 0, bm = b.month || 0;
-    if (am !== bm) return am - bm;
-    if (a.day !== b.day) return a.day - b.day;
-    return a.location.localeCompare(b.location);
-  });
-
-  document.getElementById('tableWrapper').classList.add('visible');
-  document.getElementById('tableTitle').textContent = `Ca trực của ${name} — ${rows.length} ca`;
-  document.getElementById('exportBtn').disabled = false;
-  document.getElementById('exportAndOpenBtn').disabled = false;
-
-  const container = document.getElementById('tableContainer');
-  if (rows.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div>Không tìm thấy ca trực</div></div>';
-    return;
-  }
-
-  // Use per-row month/year for display
-  const defaultMon = monthYear.month ? pad2(monthYear.month) : '??';
-  const defaultYr  = monthYear.year  || '????';
-
-  let html = `<table><thead><tr><th>Ngày</th><th>Thứ</th><th>Địa điểm</th><th>Ca trực</th><th>Bắt đầu</th><th>Kết thúc</th></tr></thead><tbody>`;
-  rows.forEach((r,i) => {
-    const rMon = r.month ? pad2(r.month) : defaultMon;
-    const rYr  = r.year  || defaultYr;
-    const locClass = r.location.includes('Hoàng') ? 'loc-hm' : r.location.includes('Tùng') || r.location.includes('TTT') ? 'loc-ttt' : 'loc-other';
-    let startTime = '—', endTimeDisplay = '—';
-    const shiftKey = r.shift.toLowerCase().trim();
-    const isTTT    = r.location.includes('Tôn Thất Tùng') || r.location.includes('TTT');
-    if (shiftKey.includes('nội trú')) {
-      const t = noiTruTimes(r, rMon, rYr);
-      startTime = t.startTime;
-      const endDay = parseInt(t.endDate.split('/')[0]);
-      const isOvernight = endDay !== r.day;
-      const note = (isTTT && isOvernight) ? getTTTEarlyNote(endDay, r.month) : '';
-      const noteHtml = note
-        ? `<span style="font-size:10px;color:var(--text-muted);display:block;margin-top:2px">${note}</span>`
-        : '';
-      endTimeDisplay = isOvernight
-        ? `${t.endTime}<span style="font-size:10px;color:var(--text-muted);display:block">ngày ${t.endDate}</span>`
-        : t.endTime;
-      html += `<tr style="animation:rowIn .25s ease ${i*0.02}s both">
-        <td class="td-date">${pad2(r.day)}/${rMon}/${rYr}</td>
-        <td class="td-thu">${r.thu}</td>
-        <td><span class="location-badge ${locClass}">${r.location}</span></td>
-        <td><span class="shift-chip">${r.shift}</span>${noteHtml}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);white-space:nowrap">${startTime}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">${endTimeDisplay}</td>
-      </tr>`;
-    } else {
-      const times = shiftTimes[shiftKey] || shiftTimes['default'];
-      startTime = `${pad2(times[0])}:${pad2(times[1])}`;
-      endTimeDisplay = `${pad2(times[2])}:${pad2(times[3])}`;
-      html += `<tr style="animation:rowIn .25s ease ${i*0.02}s both">
-        <td class="td-date">${pad2(r.day)}/${rMon}/${rYr}</td>
-        <td class="td-thu">${r.thu}</td>
-        <td><span class="location-badge ${locClass}">${r.location}</span></td>
-        <td><span class="shift-chip">${r.shift}</span></td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);white-space:nowrap">${startTime}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">${endTimeDisplay}</td>
-      </tr>`;
-    }
-  });
-  html += '</tbody></table>';
-  html += '<style>@keyframes rowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}</style>';
-  container.innerHTML = html;
-
-  showCSVPreview(name, rows, defaultMon, defaultYr);
+  const events=buildCalendarEventsForName(name);
+  $('tableTitle').textContent='Ca trực của '+name+' — '+events.length+' ca';
+  renderEventTable($('tableContainer'),events);$('tableWrapper').classList.add('visible');
+  $('exportBtn').disabled=!events.length;$('exportAndOpenBtn').disabled=!events.length;
+  showCSVPreview(events);
 }
-
-function showCSVPreview(name, rows, mon, yr) {
-  const info = document.getElementById('csvInfo');
-  info.classList.add('visible');
-  if (!rows.length) return;
-  // Find a Nội trú row for preview if exists, else first row
-  const r = rows.find(x => x.shift.toLowerCase().includes('nội trú')) || rows[0];
-  const shiftKey = r.shift.toLowerCase().trim();
-  let startTime, endDate, endTime;
-  if (shiftKey.includes('nội trú')) {
-    const t = noiTruTimes(r, mon, yr);
-    startTime = t.startTime; endDate = t.endDate; endTime = t.endTime;
-  } else {
-    const times = shiftTimes[shiftKey] || shiftTimes['default'];
-    startTime = `${pad2(times[0])}:${pad2(times[1])}`;
-    endTime   = `${pad2(times[2])}:${pad2(times[3])}`;
-    endDate   = `${pad2(r.day)}/${mon}/${yr}`;
-  }
-  document.getElementById('csvPreview').innerHTML =
-    `<span style="color:#64748b">Subject,Start Date,Start Time,End Date,End Time,Description,Location</span>\n` +
-    `<span style="color:#93c5fd">${r.shift} - ${r.location},${pad2(r.day)}/${mon}/${yr},${startTime},${endDate},${endTime},"${name} - ${r.shift}","${r.location}"</span>`;
-}
-
-// ══════════════════════════════════════════
-//  EXPORT CSV
-// ══════════════════════════════════════════
-
-// Nhãn viết tắt cho từng ca đi sớm TTT
-const earlyShiftLabel = {
-  'đi sớm a2':                  'A2',
-  'đi sớm a5':                  'A5',
-  'đi sớm a2 mở rộng':          'A2MR',
-  'đi sớm phần mềm 6h30':       'PM',
-  'đi sớm':                     'DS',   // fallback
-};
-
-/**
- * Trả về chuỗi ghi chú ca đi sớm TTT hôm sau.
- * VD: " (A2: Trung, A5: Toàn, A2MR: Đạt)"
- * @param {number} nextDay   - ngày hôm sau (số)
- * @param {number} nextMonth - tháng của ngày hôm sau
- */
-function getTTTEarlyNote(nextDay, nextMonth) {
-  const isTTT = loc => loc && (loc.includes('Tôn Thất Tùng') || loc.includes('TTT'));
-
-  // Gom tất cả ca đi sớm TTT của nextDay (cùng tháng)
-  const grouped = {};
-  scheduleData.forEach(r => {
-    if (r.day !== nextDay) return;
-    if (nextMonth && r.month && r.month !== nextMonth) return;
-    if (!isTTT(r.location)) return;
-    const sk = r.shift.toLowerCase().trim();
-    if (!sk.includes('đi sớm')) return;
-    const label = earlyShiftLabel[sk] || r.shift;
-    if (!grouped[label]) grouped[label] = [];
-    if (!grouped[label].includes(r.name)) grouped[label].push(r.name);
-  });
-
-  const parts = Object.entries(grouped).map(([label, names]) => `${label}: ${names.join(', ')}`);
-  return parts.length ? ` (${parts.join(', ')})` : '';
-}
+function showCSVPreview(events) {$('csvPreview').textContent=serializeCSV(events);$('csvInfo').classList.add('visible');}
 function exportCSV() {
-  if (!selectedName) return;
-  const rows = scheduleData.filter(r => r.name === selectedName);
-  // Sort by month → day
-  rows.sort((a,b) => {
-    const am = a.month || 0, bm = b.month || 0;
-    if (am !== bm) return am - bm;
-    return a.day - b.day;
-  });
-
-  const defaultMon = monthYear.month ? pad2(monthYear.month) : '06';
-  const defaultYr  = monthYear.year  || '2026';
-
-  const header = 'Subject,Start Date,Start Time,End Date,End Time,All Day Event,Description,Location';
-  const lines = [header];
-
-  rows.forEach(r => {
-    const rMon    = r.month ? pad2(r.month) : defaultMon;
-    const rYr     = r.year  || defaultYr;
-    const shiftKey = r.shift.toLowerCase().trim();
-    const dateStr  = `${pad2(r.day)}/${rMon}/${rYr}`;
-    const isTTT    = r.location.includes('Tôn Thất Tùng') || r.location.includes('TTT');
-    let startTime, endDate, endTime, subject;
-
-    if (shiftKey.includes('nội trú')) {
-      const t = noiTruTimes(r, rMon, rYr);
-      startTime = t.startTime;
-      endDate   = t.endDate;
-      endTime   = t.endTime;
-
-      // Xác định tháng của ngày kết thúc (có thể sang tháng sau)
-      const endDay = parseInt(t.endDate.split('/')[0]);
-      const endMon = parseInt(t.endDate.split('/')[1]);
-      const isOvernight = endDay !== r.day || endMon !== (r.month || parseInt(defaultMon));
-      const note = (isTTT && isOvernight) ? getTTTEarlyNote(endDay, endMon) : '';
-      subject = `${r.shift} - ${r.location}${note}`;
-    } else {
-      const times = shiftTimes[shiftKey] || shiftTimes['default'];
-      startTime = `${pad2(times[0])}:${pad2(times[1])}`;
-      endTime   = `${pad2(times[2])}:${pad2(times[3])}`;
-      endDate   = dateStr;
-      subject   = `${r.shift} - ${r.location}`;
-    }
-
-    lines.push([
-      `"${subject}"`,
-      dateStr, startTime, endDate, endTime, 'FALSE',
-      `"${selectedName} - ${r.shift} tại ${r.location} (${r.thu})"`,
-      `"${r.location}"`,
-    ].join(','));
-  });
-
-  const csv = '\uFEFF' + lines.join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `lich_truc_${selectedName}_T${defaultMon}_${defaultYr}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const events=buildCalendarEventsForName(selectedName);
+  if(!events.length) return;
+  const url=URL.createObjectURL(new Blob([serializeCSV(events)],{type:'text/csv;charset=utf-8'}));
+  const anchor=element('a');anchor.href=url;anchor.download=safeFilename(selectedName);anchor.hidden=true;
+  document.body.append(anchor);
+  try {anchor.click();} finally {anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 }
-
-// ══════════════════════════════════════════
-//  UTILITIES
-// ══════════════════════════════════════════
-function setStep(n) {
-  [1,2,3,4].forEach(i => {
-    const el = document.getElementById(`step${i}`);
-    el.classList.remove('active','done');
-    if (i < n) el.classList.add('done');
-    if (i === n) el.classList.add('active');
-  });
-}
-
-function showAlert(type, msg) {
-  const el = document.getElementById('alertBox');
-  el.className = `alert alert-${type} visible`;
-  el.innerHTML = msg;
-}
-
-function clearAlert() {
-  document.getElementById('alertBox').className = 'alert';
-}
-
-function resetAll() {
-  workbook = null; rawHeaders = []; rawRows = []; rawColLocations = [];
-  rawDayColIdx = -1; rawThuColIdx = -1;
-  scheduleData = []; selectedName = null;
-  monthYear = { month: null, year: null };
-  document.getElementById('dropZone').style.display = '';
-  document.getElementById('fileLoaded').classList.remove('visible');
-  document.getElementById('fileInput').value = '';
-  document.getElementById('mapperPanel').classList.remove('visible');
-  document.getElementById('statsBar').classList.remove('visible');
-  document.getElementById('selectorPanel').classList.remove('visible');
-  document.getElementById('tableWrapper').classList.remove('visible');
-  document.getElementById('csvInfo').classList.remove('visible');
-  document.getElementById('exportBtn').disabled = true;
-  document.getElementById('exportAndOpenBtn').disabled = true;
-  document.getElementById('colGrid').innerHTML = '';
-  document.getElementById('nameGrid').innerHTML = '';
-  document.getElementById('tableContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">👆</div><div>Chọn tên để xem lịch</div></div>';
-  clearAlert();
-  setStep(1);
-}
-
-// ══════════════════════════════════════════
-//  GOOGLE CALENDAR — tải CSV rồi mở trang import
-// ══════════════════════════════════════════
 function exportAndOpenGcal() {
-  exportCSV();   // tải file CSV về máy
-  // Delay nhỏ để trình duyệt kịp trigger download trước khi mở tab mới
-  setTimeout(() => {
-    window.open('https://calendar.google.com/calendar/r/settings/export', '_blank');
-  }, 600);
+  if(!buildCalendarEventsForName(selectedName).length) return;
+  window.open(GCAL_URL,'_blank','noopener,noreferrer');exportCSV();
 }
+const dropZone=$('dropZone');
+dropZone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('fileInput').click();}});
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');if(e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);});
+function runSelfTests() {
+  const results=[];
+  const test=(name,fn)=>{try{fn();results.push({name,pass:true});}catch(e){results.push({name,pass:false,error:e.message});}};
+  const equal=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b)) throw new Error(JSON.stringify(a)+' != '+JSON.stringify(b));};
+  const assert=v=>{if(!v) throw new Error('Assertion failed');};
+  const d=(year,month,day)=>({year,month,day});
+  const fact=(date,props={})=>({date,saturday:false,sunday:false,holiday:false,...props});
+  const entry=(date,thu='Thứ Hai',shift='Nội trú',name='Hùng')=>({date,thu,shift,name,location:TTT});
+  const context=(facts=[],earlyIndex=new Map())=>({facts:new Map(facts.map(f=>[dateKey(f.date),f])),earlyIndex});
+  function fixture(rows,extra={}) {
+    const ws={A1:{v:'LỊCH TRỰC THÁNG 10/2026'},A2:{v:'Ngày'},B2:{v:'Thứ'},
+      C2:{v:HM},E2:{v:TTT},C3:{v:'Nội trú'},D3:{v:'Đi sớm'},E3:{v:'Nội trú'},F3:{v:'Đi sớm A2'},
+      G2:{v:'Ghi chú'},G3:{v:'Nội trú'},'!ref':'A1:XFD1048576',
+      '!merges':[{s:{r:1,c:2},e:{r:1,c:3}},{s:{r:1,c:4},e:{r:1,c:5}}],...extra};
+    rows.forEach((row,i)=>row.forEach((v,c)=>{if(v!=null) ws[String.fromCharCode(65+c)+(i+4)]={v};}));
+    const sheet=readSheet(ws,'T10,2026'),header=detectHeader(sheet);
+    return buildRawSource(sheet,header,detectMonthYear(sheet,header));
+  }
+  test('rollover / repeated day / December',()=>{
+    let p=null;const keys=[];
+    for(const v of [30,31,31,1,2]) {p=parseDate(v,{year:2026,month:12},p);keys.push(dateKey(p));}
+    equal(keys,['2026-12-30','2026-12-31','2026-12-31','2027-01-01','2027-01-02']);
+    equal(dateKey(nextDay(d(2026,12,31))),'2027-01-01');equal(dateKey(nextDay(d(2024,2,28))),'2024-02-29');
+    equal(dateKey(parseDate('1/1',{year:2026,month:12},d(2026,12,31))),'2027-01-01');
+  });
+  test('Date / serial / slash / dash / dot / short year',()=>{
+    const serial=(Date.UTC(2026,9,1)-Date.UTC(1899,11,30))/86400000;
+    for(const v of [new Date(2026,9,1),serial,'1/10/2026','1-10-26','1.10.2026','1/10'])
+      equal(dateKey(parseDate(v,{year:2026,month:10})),'2026-10-01');
+    equal(dateKey(parseDate(serial-1462,{},null,true)),'2026-10-01');
+    equal(parseDate(60),null);
+  });
+  test('invalid nonblank never inherits',()=>{
+    for(const v of ['31/02/2026','abc','0','32','29/02/2026']) equal(parseDate(v,{year:2026,month:2},d(2026,2,1)),null);
+    const s=fixture([['1/10','Thứ Năm','Hùng'],['oops','Thứ Sáu','Nam'],['','Thứ 7 (Tối)','Cao']]);
+    equal(s.records.length,1);equal(s.warnings.length,1);
+  });
+  test('full date ordering and formatting',()=>{
+    equal([d(2027,1,1),d(2026,12,31),d(2026,1,1)].sort(compareDates).map(dateKey),['2026-01-01','2026-12-31','2027-01-01']);
+    equal(uiDate(d(2026,10,1)),'01/10/2026');equal(csvDate(d(2026,10,1)),'10/01/2026');
+    const events=[d(2027,1,1),d(2026,12,31)].map(date=>buildCalendarEvent(entry(date),context([fact(date)])));
+    equal(events.sort(compareEvents).map(e=>dateKey(e.startDate)),['2026-12-31','2027-01-01']);
+  });
+  test('month/year sources and unresolved error',()=>{
+    const s=fixture([['1/10','Thứ Năm','Hùng']]);
+    for(const title of ['THÁNG 1/2027','THÁNG 01.2027','THÁNG 1-2027','THÁNG 1,2027']) {
+      s.sheet.rows.get(0).set(0,title);equal(detectMonthYear(s.sheet,s.header),{month:1,year:2027});
+    }
+    s.sheet.rows.delete(0);s.sheet.rowNumbers=s.sheet.rowNumbers.filter(r=>r!==0);
+    equal(detectMonthYear(s.sheet,s.header),{month:10,year:2026});
+    s.sheet.name='Lịch';s.sheet.rows.get(3).set(0,'1/11/27');
+    equal(detectMonthYear(s.sheet,s.header),{month:11,year:2027});
+    s.sheet.rows.get(3).set(0,1);let threw=false;try{detectMonthYear(s.sheet,s.header);}catch(e){threw=true;}assert(threw);
+  });
+  test('all inpatient rules / missing and exact following day',()=>{
+    const date=d(2026,10,5),tomorrow=nextDay(date);
+    const check=(props,thu,start,end,endDate,following=[])=>{
+      const e=buildCalendarEvent(entry(date,thu),context([fact(date,props),...following]));
+      equal([e.startTime,e.endTime,dateKey(e.endDate)],[start,end,dateKey(endDate)]);
+    };
+    check({},'Thứ Hai','16:30','07:00',tomorrow);
+    check({saturday:true},'Thứ 7 (Sáng)','12:00','17:00',date);
+    check({saturday:true},'Thứ 7 (Tối)','17:00','08:00',tomorrow);
+    for(const props of [{sunday:true},{holiday:true}]) {
+      check(props,'Lễ Sáng','08:00','17:00',date);
+      check(props,'Lễ Tối','17:00','07:00',tomorrow);
+      check(props,'Lễ Tối','17:00','08:00',tomorrow,[fact(tomorrow,{holiday:true})]);
+      check(props,'Lễ Tối','17:00','08:00',tomorrow,[fact(tomorrow,{sunday:true})]);
+      check(props,'Lễ Tối','17:00','07:00',tomorrow,[fact(d(2027,10,6),{holiday:true})]);
+      check(props,'Lễ Tối','17:00','07:00',tomorrow,[fact(tomorrow)]);
+    }
+  });
+  test('holiday evidence independent of checkboxes and NB',()=>{
+    const raw=fixture([[5,'Thứ Hai','NB','NB','Hùng','NB'],[6,'Thứ Ba','Hùng',null,'Nam'],[7,'Lễ Sáng','Hùng'],[7,'Lễ Tối','Nam']]);
+    equal(raw.facts.get('2026-10-05').holiday,false);equal(raw.facts.get('2026-10-06').holiday,false);
+    equal(raw.facts.get('2026-10-07').holiday,true);
+    const m=buildSchedule(raw,[4]);equal(m.events[0].startTime,'16:30');assert(m.facts===raw.facts);
+    assert(buildSchedule(raw,[]).facts===raw.facts);
+  });
+  test('cross month and year TTT notes',()=>{
+    for(const date of [d(2026,10,31),d(2026,12,31)]) {
+      const end=nextDay(date),idx=new Map([[dateKey(end),new Map([['A2',new Map([['nam','Nam']])]])],
+        [dateKey(d(date.year,date.month,1)),new Map([['PM',new Map([['wrong','Wrong']])]])]]);
+      const e=buildCalendarEvent(entry(date),context([fact(date)],idx));
+      assert(e.subject.includes('A2: Nam'));assert(!e.subject.includes('Wrong'));
+    }
+    const raw=fixture([[1,'Thứ Năm',null,null,'Hùng'],[2,'Thứ Sáu',null,null,null,'Cao']]);
+    assert(buildSchedule(raw,[4]).events[0].subject.includes('A2: Cao'));
+  });
+  test('exact early/lunch times and unknown rejection',()=>{
+    for(const label of ['Đi sớm','Đi sớm A2','Đi sớm A5','Đi sớm A2 mở rộng']) {
+      const e=buildCalendarEvent(entry(d(2026,10,5),'Thứ Hai',label),context());
+      equal([e.startTime,e.endTime],['06:15','07:00']);
+    }
+    equal(resolveShiftDefinition('Đi sớm phần mềm 6h30').start,'06:30');
+    equal(resolveShiftDefinition('Trực trưa'),{kind:'lunch',start:'12:00',end:'13:30'});
+    equal(resolveShiftDefinition('Ca lạ'),null);
+    const raw=fixture([[1,'Thứ Năm','Hùng','Nam']],{D3:{v:'Ca lạ'}});
+    let threw=false;try{buildSchedule(raw,[3]);}catch(e){threw=true;}assert(threw);
+    threw=false;try{buildCalendarEvent(entry(d(2026,10,5),'Thứ Hai','Ra trực'),context());}catch(e){threw=true;}assert(threw);
+  });
+  test('staff splitting / long names / NFC / leave compounds',()=>{
+    equal(parseStaff('Nguyễn Thị Hoàng Phương Anh; Hùng,\nHùng; Cao'),['Nguyễn Thị Hoàng Phương Anh','Hùng','Cao']);
+    equal(parseStaff('NB; NP; NL; NTS; NNN; OFF; NGH; NGHI; NGHỈ; NB/Sáng 2; Nghỉ bệnh; NGHỈ CUỐI TUẦN; 123; Thứ Hai; Nội trú'),[]);
+  });
+  test('RFC4180 / BOM / formula mitigation / filename',()=>{
+    equal(csvField('A,"B"\nC'),'"A,""B""\r\nC"');
+    for(const s of ['=1',' +1',' -1',' @x','\tfoo',' \rfoo']) assert(csvField(s).includes("'"));
+    equal(csvField('Hùng'),'Hùng');assert(serializeCSV([]).startsWith('\uFEFFSubject,'));
+    assert(serializeCSV([]).endsWith('\r\n'));assert(!/[<>:"/\\|?*]/.test(safeFilename('../Hùng:bad')));
+  });
+  test('malicious HTML remains text',()=>{
+    const payload='<img src=x onerror=alert(1)>',box=element('div');
+    const e=buildCalendarEvent(entry(d(2026,10,5)),context([fact(d(2026,10,5))]));
+    renderEventTable(box,[{...e,subject:payload,thu:payload}]);
+    assert(box.textContent.includes(payload));equal(box.querySelectorAll('img').length,0);
+    const span=element('span',payload);equal(span.textContent,payload);equal(span.children.length,0);
+    equal(parseStaff(payload),[]);
+    const preview=element('pre',serializeCSV([{...e,subject:payload}]));equal(preview.children.length,0);
+  });
+  test('merged headers / footer / inflated rows',()=>{
+    const raw=fixture([[1,'Thứ Năm','Hùng','Nam','Cao','Đạt','Intruder'],['Ghi chú','','Footer'],[2,'Thứ Sáu','Footer']]);
+    equal(raw.header.columns.length,4);equal(raw.records.length,1);
+    equal(raw.header.columns.map(c=>c.location),[HM,HM,TTT,TTT]);equal(raw.sheet.rowNumbers.length,6);
+  });
+  test('preview/export share canonical event objects and bytes',()=>{
+    const raw=fixture([[1,'Thứ Năm','Hùng','Nam','Hùng','Cao']]);
+    const m=buildSchedule(raw,[2,3,4,5]),events=buildCalendarEventsForName('Hùng',m);
+    assert(events[0]===m.eventsByName.get('hùng')[0]);
+    const preview=element('pre',serializeCSV(events));equal(preview.textContent,serializeCSV(buildCalendarEventsForName('Hùng',m)));
+    const table=element('div');renderEventTable(table,events);events.forEach(e=>assert(table.textContent.includes(e.subject)));
+  });
+  test('explicit Saturday holiday and merged off-day evidence',()=>{
+    const raw=fixture([[3,'Thứ 7 - Nghỉ lễ (Sáng)','Hùng'],[3,'Thứ 7 - Nghỉ lễ (Tối)','Nam']]);
+    const m=buildSchedule(raw,[2]);
+    equal(m.events[0].startTime,'08:00');equal(m.events[1].endTime,'07:00');
+    const merged=fixture([[5,'Thứ Hai (Tối)','Hùng','NGHỈ LỄ'],[6,'Thứ Ba (Sáng)','Nam']],{
+      '!merges':[{s:{r:1,c:2},e:{r:1,c:3}},{s:{r:1,c:4},e:{r:1,c:5}},
+        {s:{r:3,c:3},e:{r:4,c:3}}]});
+    equal(merged.facts.get('2026-10-06').holiday,true);
+    equal(buildSchedule(merged,[2]).events[0].endTime,'08:00');
+  });
+  test('merged date continuation and structural sheet selection',()=>{
+    const raw=fixture([[3,'Thứ 7 (Sáng)','Hùng'],['','Thứ 7 (Tối)','Nam']],{
+      '!merges':[{s:{r:1,c:2},e:{r:1,c:3}},{s:{r:1,c:4},e:{r:1,c:5}},
+        {s:{r:3,c:0},e:{r:4,c:0}}]});
+    equal(raw.records.map(r=>dateKey(r.date)),['2026-10-03','2026-10-03']);
+    const ws={'!merges':raw.sheet.merges};
+    for(const [r,row] of raw.sheet.rows) for(const [c,v] of row) ws[String.fromCharCode(65+c)+(r+1)]={v};
+    const wb={SheetNames:['Lịch trực giả','Dữ liệu'],Sheets:{'Lịch trực giả':{A1:{v:'Lịch trực'}},'Dữ liệu':ws}};
+    equal(detectSchedule(wb).best.sheet.name,'Dữ liệu');
+  });
+  test('actual preview and alerts render hostile strings as text',()=>{
+    const payload='<svg onload=alert(1)>',preview=$('csvPreview'),alert=$('alertBox'),info=$('csvInfo');
+    const saved=[preview.textContent,alert.textContent,alert.className,info.className];
+    try {
+      const e=buildCalendarEvent(entry(d(2026,10,5)),context([fact(d(2026,10,5))]));
+      const events=[{...e,subject:payload}];showCSVPreview(events);showAlert('info',payload);
+      equal(preview.textContent,serializeCSV(events));equal(preview.children.length,0);
+      equal(alert.textContent,payload);equal(alert.children.length,0);
+    } finally {
+      preview.textContent=saved[0];alert.textContent=saved[1];alert.className=saved[2];info.className=saved[3];
+    }
+  });
+  window.__LICHTRUC_TEST_RESULTS__={passed:results.filter(r=>r.pass).length,failed:results.filter(r=>!r.pass).length,tests:results};
+  console.table(results.map(r=>({test:r.name,result:r.pass?'PASS':'FAIL',error:r.error||''})));
+  return window.__LICHTRUC_TEST_RESULTS__;
+}
+if(new URLSearchParams(window.location.search).get('selftest')==='1') runSelfTests();
 </script>
 </body>
 </html>
